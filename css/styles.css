@@ -453,3 +453,40 @@ textarea.input-field { resize: vertical; }
 .toast.success { border-color: var(--green)66; color: var(--green); }
 .toast.error { border-color: var(--red)66; color: var(--red); }
 .toast.info { color: var(--text); }
+
+/* Escalation detail view */
+.detail-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; margin-bottom: 8px;
+}
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.detail-org { font-size: 1.2rem; font-weight: 600; color: var(--text); }
+.detail-meta { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+.detail-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.detail-days { font-size: 0.8rem; color: var(--muted); }
+.detail-notes { margin-top: 12px; font-size: 0.88rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; }
+
+/* Timeline */
+.timeline-track { display: flex; flex-direction: column; gap: 0; margin-bottom: 24px; }
+.timeline-entry { display: flex; gap: 14px; position: relative; padding-bottom: 4px; }
+.timeline-entry:not(:last-child)::before {
+  content: ''; position: absolute; left: 7px; top: 20px;
+  width: 2px; height: 100%; background: var(--border);
+}
+.timeline-dot {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  margin-top: 4px; border: 2px solid var(--border); background: var(--surface2);
+}
+.timeline-dot.resolved-by-se { background: var(--green); border-color: var(--green); }
+.timeline-dot.escalated-to-engineering { background: var(--amber); border-color: var(--amber); }
+.timeline-dot.pending { background: var(--muted); border-color: var(--muted); }
+.timeline-body { flex: 1; padding-bottom: 20px; }
+.timeline-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.timeline-date { font-size: 0.78rem; color: var(--muted); }
+.timeline-note { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+/* Add timeline entry box */
+.add-timeline-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; margin-top: 8px;
+}

@@ -1,5 +1,7 @@
 // Escalations tab
 
+let _viewingEscalation = null; // id of escalation open in detail view
+
 function getKnownOrgs() {
   const orgs = window._escalations.map(e => e.org).filter(Boolean);
   return [...new Set(orgs)].sort();
@@ -27,14 +29,14 @@ function renderEscalations(escalations) {
         ${escalations.length === 0
           ? '<tr><td colspan="7" class="empty-cell">No escalations logged yet.</td></tr>'
           : escalations.map(e => `
-            <tr>
+            <tr class="clickable-row" onclick="openEscalationDetail('${e.id}')">
               <td>${e.date || '—'}</td>
               <td>${e.org}</td>
               <td><span class="tag">${e.type}</span></td>
               <td><span class="outcome ${e.outcome.toLowerCase().replace(/ /g,'-')}">${e.outcome}</span></td>
               <td>${e.days_to_resolve ?? '—'}</td>
               <td class="notes-cell">${e.notes || '—'}</td>
-              <td><button class="icon-btn" onclick="removeEscalation('${e.id}')">🗑</button></td>
+              <td><button class="icon-btn" onclick="event.stopPropagation();removeEscalation('${e.id}')">🗑</button></td>
             </tr>`).join('')}
       </tbody>
     </table>
@@ -144,7 +146,8 @@ async function saveEscalation() {
     type,
     outcome: document.getElementById('esc-outcome').value,
     days_to_resolve: parseInt(document.getElementById('esc-days').value) || null,
-    notes: document.getElementById('esc-notes').value.trim()
+    notes: document.getElementById('esc-notes').value.trim(),
+    timeline: [{ status: document.getElementById('esc-outcome').value, date: document.getElementById('esc-date').value.trim() || new Date().toISOString().slice(0,10), note: document.getElementById('esc-notes').value.trim() || 'Escalation logged' }]
   };
   if (!data.org) { showToast('Organisation is required', 'error'); return; }
   showToast('Saving…', 'info');
@@ -162,9 +165,114 @@ async function removeEscalation(id) {
   if (!confirm('Delete this escalation?')) return;
   try {
     await deleteEscalation(id);
+    _viewingEscalation = null;
     await reloadAll();
     showToast('Deleted', 'success');
   } catch (e) {
     showToast('Delete failed', 'error');
+  }
+}
+
+function openEscalationDetail(id) {
+  _viewingEscalation = id;
+  renderTab('escalations');
+}
+
+function renderEscalationDetail(esc) {
+  const timeline = Array.isArray(esc.timeline) ? esc.timeline : [];
+  const timelineHTML = timeline.length === 0
+    ? '<div class="empty-state" style="padding:12px 0">No timeline entries yet.</div>'
+    : timeline.map((entry, i) => `
+        <div class="timeline-entry">
+          <div class="timeline-dot ${entry.status.toLowerCase().replace(/ /g,'-')}"></div>
+          <div class="timeline-body">
+            <div class="timeline-header">
+              <span class="outcome ${entry.status.toLowerCase().replace(/ /g,'-')}">${entry.status}</span>
+              <span class="timeline-date">${entry.date || ''}</span>
+            </div>
+            ${entry.note ? `<div class="timeline-note">${entry.note}</div>` : ''}
+          </div>
+        </div>`).join('');
+
+  document.getElementById('escalations-content').innerHTML = `
+    <div class="toolbar">
+      <button class="btn-secondary" onclick="_viewingEscalation=null;renderTab('escalations')">← Back</button>
+      <button class="btn-primary" onclick="showAddEscModal()">+ Log Escalation</button>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-org">${esc.org}</div>
+          <div class="detail-meta">${esc.date || ''} &nbsp;·&nbsp; <span class="tag">${esc.type}</span></div>
+        </div>
+        <div class="detail-right">
+          <span class="outcome ${esc.outcome.toLowerCase().replace(/ /g,'-')}">${esc.outcome}</span>
+          ${esc.days_to_resolve ? `<span class="detail-days">${esc.days_to_resolve}d to resolve</span>` : ''}
+        </div>
+      </div>
+      ${esc.notes ? `<div class="detail-notes">${esc.notes}</div>` : ''}
+    </div>
+
+    <div class="section-title" style="margin-top:24px">Case Timeline</div>
+    <div class="timeline-track">${timelineHTML}</div>
+
+    <div class="add-timeline-box">
+      <h4 style="margin:0 0 12px">Add Timeline Entry</h4>
+      <select id="tl-status" class="input-field">
+        ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
+      </select>
+      <input id="tl-date" placeholder="Date (e.g. ${new Date().toISOString().slice(0,10)})" class="input-field" value="${new Date().toISOString().slice(0,10)}" />
+      <textarea id="tl-note" placeholder="What happened? What did we learn?" class="input-field" rows="3"></textarea>
+      <button class="btn-primary" style="margin-top:8px" onclick="addTimelineEntry('${esc.id}')">Add Entry</button>
+    </div>
+
+    <div id="esc-modal" class="modal hidden">
+      <div class="modal-box">
+        <h3>Log Escalation</h3>
+        <div class="autocomplete-wrap">
+          <input id="esc-org" placeholder="Organisation" class="input-field" autocomplete="off" oninput="filterOrgSuggestions()" onkeydown="orgKeydown(event)" />
+          <div id="org-suggestions" class="autocomplete-list hidden"></div>
+        </div>
+        <input id="esc-date" placeholder="Date (e.g. 2026-03-16)" class="input-field" />
+        <select id="esc-type" class="input-field" onchange="toggleOtherField()">
+          ${ESCALATION_TYPES.map(t => `<option>${t}</option>`).join('')}
+        </select>
+        <input id="esc-other-desc" placeholder="Describe the issue type…" class="input-field hidden" />
+        <select id="esc-outcome" class="input-field">
+          ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
+        </select>
+        <input id="esc-days" placeholder="Days to resolve" type="number" class="input-field" />
+        <textarea id="esc-notes" placeholder="Notes" class="input-field" rows="3"></textarea>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeEscModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveEscalation()">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function addTimelineEntry(escId) {
+  const status = document.getElementById('tl-status').value;
+  const date = document.getElementById('tl-date').value.trim();
+  const note = document.getElementById('tl-note').value.trim();
+  if (!note) { showToast('Please add a note for this entry', 'error'); return; }
+
+  const esc = window._escalations.find(e => e.id === escId);
+  if (!esc) return;
+
+  const timeline = Array.isArray(esc.timeline) ? [...esc.timeline] : [];
+  timeline.push({ status, date: date || new Date().toISOString().slice(0,10), note });
+
+  // Latest status becomes the escalation's outcome
+  const update = { timeline, outcome: status };
+  showToast('Saving…', 'info');
+  try {
+    await updateEscalation(escId, update);
+    await reloadAll();
+    showToast('Entry added!', 'success');
+  } catch (e) {
+    showToast('Save failed', 'error');
   }
 }

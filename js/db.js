@@ -55,6 +55,14 @@ async function addEscalation(data) {
   return dbRequest('escalations', 'POST', data);
 }
 
+async function updateEscalation(id, data) {
+  return dbRequest(`escalations?id=eq.${id}`, 'PATCH', data);
+}
+
+async function updateEscalation(id, data) {
+  return dbRequest(`escalations?id=eq.${id}`, 'PATCH', data);
+}
+
 async function deleteEscalation(id) {
   return dbRequest(`escalations?id=eq.${id}`, 'DELETE');
 }
