@@ -155,11 +155,15 @@ function drawBarChart(id, labels, data, colour, context) {
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
 
     let clicked = null;
     data.forEach((val, i) => {
-      const cx = pad.left + i * gap + gap / 2;
-      if (Math.abs(mx - cx) < gap / 2) clicked = i;
+      if (val === 0) return; // skip empty bars entirely
+      const x = pad.left + i * gap + gap / 2 - barW / 2;
+      const barH = Math.max(((H - pad.top - pad.bottom) * val) / max, 2);
+      const y = H - pad.bottom - barH;
+      if (mx >= x && mx <= x + barW && my >= y && my <= H - pad.bottom) clicked = i;
     });
 
     if (clicked !== null && selectedIdx === clicked) {
