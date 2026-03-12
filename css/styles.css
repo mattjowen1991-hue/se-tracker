@@ -465,6 +465,9 @@ textarea.input-field { resize: vertical; }
 .detail-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .detail-days { font-size: 0.8rem; color: var(--muted); }
 .detail-notes { margin-top: 12px; font-size: 0.88rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; }
+.detail-related { margin-top: 8px; font-size: 0.82rem; color: var(--muted); }
+.related-link { color: var(--blue); cursor: pointer; }
+.related-link:hover { text-decoration: underline; }
 
 /* Timeline */
 .timeline-track { display: flex; flex-direction: column; gap: 0; margin-bottom: 24px; }

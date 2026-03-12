@@ -64,6 +64,11 @@ function renderEscalations(escalations) {
         </select>
         <input id="esc-days" placeholder="Days to resolve" type="number" class="input-field" />
         <textarea id="esc-notes" placeholder="Notes" class="input-field" rows="3"></textarea>
+        <div class="autocomplete-wrap">
+          <input id="esc-related-display" placeholder="Related escalation (optional)" class="input-field" autocomplete="off" oninput="filterRelatedSuggestions()" />
+          <input id="esc-related-id" type="hidden" value="" />
+          <div id="related-suggestions" class="autocomplete-list hidden"></div>
+        </div>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeEscModal()">Cancel</button>
           <button class="btn-primary" onclick="saveEscalation()">Save</button>
@@ -116,6 +121,35 @@ function orgKeydown(e) {
   }
 }
 
+function filterRelatedSuggestions() {
+  const input = document.getElementById('esc-related-display');
+  const list = document.getElementById('related-suggestions');
+  const val = input.value.trim().toLowerCase();
+  const currentOrg = document.getElementById('esc-org').value.trim();
+
+  if (!val) { list.classList.add('hidden'); return; }
+
+  const matches = window._escalations.filter(e =>
+    `${e.org} ${e.type} ${e.date || ''}`.toLowerCase().includes(val)
+  ).slice(0, 8);
+
+  if (matches.length === 0) { list.classList.add('hidden'); return; }
+
+  list.innerHTML = matches.map(e =>
+    `<div class="autocomplete-item" onclick="selectRelated('${e.id}', '${(e.org + ' · ' + e.type + ' · ' + (e.date || '—')).replace(/'/g, "\\'")}')">
+      ${e.org} · <span class="tag" style="font-size:0.75rem">${e.type}</span> · ${e.date || '—'}
+      <span class="outcome ${e.outcome.toLowerCase().replace(/ /g,'-')}" style="float:right;font-size:0.72rem">${e.outcome}</span>
+    </div>`
+  ).join('');
+  list.classList.remove('hidden');
+}
+
+function selectRelated(id, label) {
+  document.getElementById('esc-related-display').value = label;
+  document.getElementById('esc-related-id').value = id;
+  document.getElementById('related-suggestions').classList.add('hidden');
+}
+
 function toggleOtherField() {
   const type = document.getElementById('esc-type').value;
   const field = document.getElementById('esc-other-desc');
@@ -129,9 +163,11 @@ function toggleOtherField() {
 }
 
 function showAddEscModal() {
-  ['esc-org', 'esc-date', 'esc-days', 'esc-notes', 'esc-other-desc'].forEach(id => document.getElementById(id).value = '');
+  ['esc-org', 'esc-date', 'esc-days', 'esc-notes', 'esc-other-desc', 'esc-related-display'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('esc-related-id').value = '';
   document.getElementById('esc-other-desc').classList.add('hidden');
   document.getElementById('org-suggestions')?.classList.add('hidden');
+  document.getElementById('related-suggestions')?.classList.add('hidden');
   document.getElementById('esc-modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('esc-org').focus(), 50);
 }
@@ -139,6 +175,7 @@ function showAddEscModal() {
 function closeEscModal() {
   document.getElementById('esc-modal').classList.add('hidden');
   document.getElementById('org-suggestions')?.classList.add('hidden');
+  document.getElementById('related-suggestions')?.classList.add('hidden');
   document.getElementById('esc-other-desc').classList.add('hidden');
 }
 
@@ -147,6 +184,7 @@ async function saveEscalation() {
   const otherDesc = document.getElementById('esc-other-desc').value.trim();
   const type = rawType === 'Other' && otherDesc ? `Other: ${otherDesc}` : rawType;
 
+  const relatedId = document.getElementById('esc-related-id').value.trim() || null;
   const data = {
     org: document.getElementById('esc-org').value.trim(),
     date: document.getElementById('esc-date').value.trim(),
@@ -154,6 +192,7 @@ async function saveEscalation() {
     outcome: document.getElementById('esc-outcome').value,
     days_to_resolve: parseInt(document.getElementById('esc-days').value) || null,
     notes: document.getElementById('esc-notes').value.trim(),
+    related_escalation_id: relatedId,
     timeline: [{ status: document.getElementById('esc-outcome').value, date: document.getElementById('esc-date').value.trim() || new Date().toISOString().slice(0,10), note: document.getElementById('esc-notes').value.trim() || 'Escalation logged' }]
   };
   if (!data.org) { showToast('Organisation is required', 'error'); return; }
@@ -221,6 +260,15 @@ function renderEscalationDetail(esc) {
         </div>
       </div>
       ${esc.notes ? `<div class="detail-notes">${esc.notes}</div>` : ''}
+      ${(() => {
+        const related = esc.related_escalation_id
+          ? window._escalations.find(e => e.id === esc.related_escalation_id) : null;
+        const referencedBy = window._escalations.filter(e => e.related_escalation_id === esc.id);
+        const lines = [];
+        if (related) lines.push(`<div class="detail-related">🔗 Related to: <span class="related-link" onclick="openEscalationDetail('${related.id}')">${related.org} · ${related.type} · ${related.date || '—'} →</span></div>`);
+        referencedBy.forEach(r => lines.push(`<div class="detail-related">↩ Referenced by: <span class="related-link" onclick="openEscalationDetail('${r.id}')">${r.org} · ${r.type} · ${r.date || '—'} →</span></div>`));
+        return lines.join('');
+      })()}
     </div>
 
     <div class="section-title" style="margin-top:24px">Case Timeline</div>
