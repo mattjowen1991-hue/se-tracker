@@ -328,6 +328,33 @@ textarea.input-field { resize: vertical; }
   gap: 10px;
 }
 
+/* Autocomplete */
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface2);
+  border: 1px solid var(--blue)66;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 200;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.autocomplete-list.hidden { display: none; }
+.autocomplete-item {
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 1px solid var(--border)44;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover,
+.autocomplete-item.active { background: var(--blue)22; color: var(--blue); }
+
 /* Modal */
 .modal {
   position: fixed;
