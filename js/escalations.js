@@ -12,6 +12,13 @@ function renderEscalations(escalations) {
   const resolved = escalations.filter(e => e.outcome === 'Resolved by SE').length;
   const escalatedEng = escalations.filter(e => e.outcome === 'Escalated to Engineering').length;
 
+  // Route to detail view if one is open
+  if (_viewingEscalation) {
+    const esc = escalations.find(e => e.id === _viewingEscalation);
+    if (esc) { renderEscalationDetail(esc); return; }
+    _viewingEscalation = null; // escalation was deleted, fall through to list
+  }
+
   document.getElementById('escalations-content').innerHTML = `
     <div class="toolbar">
       <div class="kpi-row">
