@@ -90,7 +90,7 @@ function filterOrgSuggestions() {
   if (matches.length === 0) { list.classList.add('hidden'); return; }
 
   list.innerHTML = matches.map((o, i) =>
-    `<div class="autocomplete-item" data-idx="${i}" onclick="selectOrg('${o.replace(/'/g, "\\'")}')">${o}</div>`
+    `<div class="autocomplete-item" data-idx="${i}" onmousedown="selectOrg('${o.replace(/'/g, "\\'")}')">${o}</div>`
   ).join('');
   list.classList.remove('hidden');
 }
@@ -151,7 +151,7 @@ function filterRelatedSuggestions() {
   if (matches.length === 0 && !useOrgFilter) { list.classList.add('hidden'); return; }
 
   const showAllLink = useOrgFilter
-    ? `<div class="autocomplete-item search-all-link" onclick="_relatedSearchAll=true;filterRelatedSuggestions()">🔍 Search all organisations…</div>`
+    ? `<div class="autocomplete-item search-all-link" onmousedown="_relatedSearchAll=true;filterRelatedSuggestions()">🔍 Search all organisations…</div>`
     : '';
 
   if (matches.length === 0) {
@@ -161,9 +161,9 @@ function filterRelatedSuggestions() {
   }
 
   list.innerHTML = matches.map(e =>
-    `<div class="autocomplete-item" onclick="selectRelated('${e.id}', '${(e.org + ' · ' + e.type + ' · ' + (e.date || '—')).replace(/'/g, "\\'")}')">
-      ${e.org} · <span class="tag" style="font-size:0.75rem">${e.type}</span> · ${e.date || '—'}
-      <span class="outcome ${e.outcome.toLowerCase().replace(/ /g,'-')}" style="float:right;font-size:0.72rem">${e.outcome}</span>
+    `<div class="autocomplete-item" onmousedown="selectRelated('${e.id}', '${(e.org + ' · ' + e.type + ' · ' + (e.date || '—')).replace(/'/g, "\\'")}')">
+      <span>${e.org} · <span class="tag" style="font-size:0.75rem">${e.type}</span> · ${e.date || '—'}</span>
+      <span style="float:right;font-size:0.75rem;color:var(--muted)">${e.outcome}</span>
     </div>`
   ).join('') + showAllLink;
   list.classList.remove('hidden');
