@@ -125,6 +125,8 @@ let _relatedSearchAll = false;
 
 function showRelatedSuggestions() {
   _relatedSearchAll = false;
+  const inp = document.getElementById('esc-related-display');
+  if (inp) inp.placeholder = 'Related escalation (optional)';
   filterRelatedSuggestions();
 }
 
@@ -151,7 +153,7 @@ function filterRelatedSuggestions() {
   if (matches.length === 0 && !useOrgFilter) { list.classList.add('hidden'); return; }
 
   const showAllLink = useOrgFilter
-    ? `<div class="autocomplete-item search-all-link" onmousedown="_relatedSearchAll=true;filterRelatedSuggestions()">🔍 Search all organisations…</div>`
+    ? `<div class="autocomplete-item search-all-link" onmousedown="(function(){_relatedSearchAll=true;var inp=document.getElementById('esc-related-display');inp.value='';inp.placeholder='Type to search all organisations…';document.getElementById('related-suggestions').classList.add('hidden');setTimeout(()=>inp.focus(),0);})()">🔍 Search all organisations…</div>`
     : '';
 
   if (matches.length === 0) {
@@ -371,3 +373,10 @@ async function addTimelineEntry(escId) {
     showToast('Save failed', 'error');
   }
 }
+
+// Close any open autocomplete dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.autocomplete-wrap')) {
+    document.querySelectorAll('.autocomplete-list').forEach(el => el.classList.add('hidden'));
+  }
+});
