@@ -46,9 +46,10 @@ function renderEscalations(escalations) {
           <div id="org-suggestions" class="autocomplete-list hidden"></div>
         </div>
         <input id="esc-date" placeholder="Date (e.g. 2026-03-16)" class="input-field" />
-        <select id="esc-type" class="input-field">
+        <select id="esc-type" class="input-field" onchange="toggleOtherField()">
           ${ESCALATION_TYPES.map(t => `<option>${t}</option>`).join('')}
         </select>
+        <input id="esc-other-desc" placeholder="Describe the issue type…" class="input-field hidden" />
         <select id="esc-outcome" class="input-field">
           ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
         </select>
@@ -106,8 +107,21 @@ function orgKeydown(e) {
   }
 }
 
+function toggleOtherField() {
+  const type = document.getElementById('esc-type').value;
+  const field = document.getElementById('esc-other-desc');
+  if (type === 'Other') {
+    field.classList.remove('hidden');
+    field.focus();
+  } else {
+    field.classList.add('hidden');
+    field.value = '';
+  }
+}
+
 function showAddEscModal() {
-  ['esc-org', 'esc-date', 'esc-days', 'esc-notes'].forEach(id => document.getElementById(id).value = '');
+  ['esc-org', 'esc-date', 'esc-days', 'esc-notes', 'esc-other-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('esc-other-desc').classList.add('hidden');
   document.getElementById('org-suggestions')?.classList.add('hidden');
   document.getElementById('esc-modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('esc-org').focus(), 50);
@@ -116,13 +130,18 @@ function showAddEscModal() {
 function closeEscModal() {
   document.getElementById('esc-modal').classList.add('hidden');
   document.getElementById('org-suggestions')?.classList.add('hidden');
+  document.getElementById('esc-other-desc').classList.add('hidden');
 }
 
 async function saveEscalation() {
+  const rawType = document.getElementById('esc-type').value;
+  const otherDesc = document.getElementById('esc-other-desc').value.trim();
+  const type = rawType === 'Other' && otherDesc ? `Other: ${otherDesc}` : rawType;
+
   const data = {
     org: document.getElementById('esc-org').value.trim(),
     date: document.getElementById('esc-date').value.trim(),
-    type: document.getElementById('esc-type').value,
+    type,
     outcome: document.getElementById('esc-outcome').value,
     days_to_resolve: parseInt(document.getElementById('esc-days').value) || null,
     notes: document.getElementById('esc-notes').value.trim()
