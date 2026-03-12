@@ -199,7 +199,61 @@ body {
 .outcome.escalated-to-engineering { background: var(--amber)22; color: var(--amber); }
 .outcome.pending { background: var(--muted)22; color: var(--muted); }
 
-/* Charts */
+/* Chart tooltip */
+.chart-tooltip {
+  position: absolute;
+  width: 240px;
+  background: var(--surface2);
+  border: 1px solid var(--blue)66;
+  border-radius: 8px;
+  padding: 14px;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 8px 24px #00000066;
+}
+.chart-tooltip.hidden { display: none; }
+.tt-week {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--blue);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tt-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.tt-signal {
+  font-size: 12px;
+  color: var(--teal);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.tt-divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 10px;
+}
+.tt-why {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.tt-dismiss {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0.5;
+  text-align: right;
+}
+
+/* Chart grid needs relative positioning for tooltip */
+.chart-grid { position: relative; }
 .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .chart-card {
   background: var(--surface);
