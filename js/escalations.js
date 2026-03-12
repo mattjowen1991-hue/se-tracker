@@ -198,6 +198,8 @@ function renderEscalationDetail(esc) {
               <span class="timeline-date">${entry.date || ''}</span>
             </div>
             ${entry.note ? `<div class="timeline-note">${entry.note}</div>` : ''}
+            ${entry.slack_url ? `<a href="${entry.slack_url}" target="_blank" class="timeline-link slack-link">💬 Slack thread</a>` : ''}
+            ${entry.hubspot_url ? `<a href="${entry.hubspot_url}" target="_blank" class="timeline-link hubspot-link">🔗 HubSpot</a>` : ''}
           </div>
         </div>`).join('');
 
@@ -231,6 +233,8 @@ function renderEscalationDetail(esc) {
       </select>
       <input id="tl-date" placeholder="Date (e.g. ${new Date().toISOString().slice(0,10)})" class="input-field" value="${new Date().toISOString().slice(0,10)}" />
       <textarea id="tl-note" placeholder="What happened? What did we learn?" class="input-field" rows="3"></textarea>
+      <input id="tl-slack" placeholder="Slack URL (optional)" class="input-field" />
+      <input id="tl-hubspot" placeholder="HubSpot URL (optional)" class="input-field" />
       <button class="btn-primary" style="margin-top:8px" onclick="addTimelineEntry('${esc.id}')">Add Entry</button>
     </div>
 
@@ -264,13 +268,18 @@ async function addTimelineEntry(escId) {
   const status = document.getElementById('tl-status').value;
   const date = document.getElementById('tl-date').value.trim();
   const note = document.getElementById('tl-note').value.trim();
+  const slack_url = document.getElementById('tl-slack').value.trim();
+  const hubspot_url = document.getElementById('tl-hubspot').value.trim();
   if (!note) { showToast('Please add a note for this entry', 'error'); return; }
 
   const esc = window._escalations.find(e => e.id === escId);
   if (!esc) return;
 
   const timeline = Array.isArray(esc.timeline) ? [...esc.timeline] : [];
-  timeline.push({ status, date: date || new Date().toISOString().slice(0,10), note });
+  const entry = { status, date: date || new Date().toISOString().slice(0,10), note };
+  if (slack_url) entry.slack_url = slack_url;
+  if (hubspot_url) entry.hubspot_url = hubspot_url;
+  timeline.push(entry);
 
   // Latest status becomes the escalation's outcome
   const update = { timeline, outcome: status };
