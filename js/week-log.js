@@ -7,7 +7,7 @@ function renderWeekLog(weeklyMetrics) {
       <div class="form-grid">
         <div class="form-group">
           <label>Week</label>
-          <select id="wl-week" class="input-field">
+          <select id="wl-week" class="input-field" onchange="populateWeekForm()">
             ${weeklyMetrics.map(w => `<option value="${w.id}" data-idx="${w.week_index}">${w.week}</option>`).join('')}
           </select>
         </div>
@@ -53,6 +53,7 @@ function renderWeekLog(weeklyMetrics) {
       </div>
       <button class="btn-primary" style="margin-top:20px" onclick="saveWeekLog()">Save Week</button>
     </div>
+    <script>setTimeout(populateWeekForm, 0);</script>
     <div class="section-title" style="margin-top:32px">All Weekly Data</div>
     <table class="data-table">
       <thead><tr>
@@ -76,6 +77,21 @@ function renderWeekLog(weeklyMetrics) {
       </tbody>
     </table>
   `;
+}
+
+function populateWeekForm() {
+  const id = document.getElementById('wl-week').value;
+  const w = window._weeklyMetrics.find(m => m.id === id);
+  if (!w) return;
+  document.getElementById('wl-escalations').value = w.escalations ?? '';
+  document.getElementById('wl-calls').value = w.calls ?? '';
+  document.getElementById('wl-docs').value = w.docs_completed ?? '';
+  document.getElementById('wl-csat').value = w.csat_score ?? '';
+  document.getElementById('wl-t-esc').value = w.time_escalations ?? '';
+  document.getElementById('wl-t-calls').value = w.time_calls ?? '';
+  document.getElementById('wl-t-docs').value = w.time_docs ?? '';
+  document.getElementById('wl-t-async').value = w.time_async ?? '';
+  document.getElementById('wl-t-projects').value = w.time_projects ?? '';
 }
 
 async function saveWeekLog() {
