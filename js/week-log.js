@@ -25,7 +25,7 @@ function renderWeekLog(weeklyMetrics) {
         </div>
         <div class="form-group">
           <label>CSAT Score (out of 5)</label>
-          <input id="wl-csat" type="number" step="0.1" min="0" max="5" class="input-field" placeholder="e.g. 4.5" />
+          <input id="wl-csat" type="number" step="0.1" min="0.1" max="5" class="input-field" placeholder="e.g. 4.5" />
         </div>
       </div>
       <div class="section-title" style="margin-top:20px">Time Distribution — Actuals (%)</div>
@@ -104,7 +104,7 @@ async function saveWeekLog() {
   };
   const parseFloat2 = (elId, fallback) => {
     const val = document.getElementById(elId).value;
-    return val !== '' ? parseFloat(val) : fallback;
+    if (val === "") return fallback; const num = parseFloat(val); return Math.min(5, Math.max(0.1, num));
   };
 
   const data = {
