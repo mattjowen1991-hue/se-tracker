@@ -124,9 +124,12 @@ function orgKeydown(e) {
 let _relatedSearchAll = false;
 
 function showRelatedSuggestions() {
-  _relatedSearchAll = false;
-  const inp = document.getElementById('esc-related-display');
-  if (inp) inp.placeholder = 'Related escalation (optional)';
+  // Don't reset searchAll flag if already in all-orgs mode (e.g. after clicking Search all)
+  if (!_relatedSearchAll) {
+    const inp = document.getElementById('esc-related-display');
+    if (inp) inp.placeholder = 'Related escalation (optional)';
+  }
+  _relatedSearchAll = _relatedSearchAll || false;
   filterRelatedSuggestions();
 }
 
@@ -153,7 +156,7 @@ function filterRelatedSuggestions() {
   if (matches.length === 0 && !useOrgFilter) { list.classList.add('hidden'); return; }
 
   const showAllLink = useOrgFilter
-    ? `<div class="autocomplete-item search-all-link" onmousedown="(function(){_relatedSearchAll=true;var inp=document.getElementById('esc-related-display');inp.value='';inp.placeholder='Type to search all organisations…';document.getElementById('related-suggestions').classList.add('hidden');setTimeout(()=>inp.focus(),0);})()">🔍 Search all organisations…</div>`
+    ? `<div class="autocomplete-item search-all-link" onmousedown="(function(e){e.preventDefault();_relatedSearchAll=true;var inp=document.getElementById('esc-related-display');inp.value='';inp.placeholder='Type to search all organisations…';filterRelatedSuggestions();setTimeout(()=>{inp.focus();},50);})(event)">🔍 Search all organisations…</div>`
     : '';
 
   if (matches.length === 0) {
@@ -376,7 +379,7 @@ async function addTimelineEntry(escId) {
 
 // Close any open autocomplete dropdown when clicking outside
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.autocomplete-wrap')) {
+  if (!e.target.closest('.autocomplete-wrap') && !e.target.closest('.autocomplete-list')) {
     document.querySelectorAll('.autocomplete-list').forEach(el => el.classList.add('hidden'));
   }
 });
