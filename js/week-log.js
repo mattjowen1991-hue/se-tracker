@@ -96,16 +96,27 @@ function populateWeekForm() {
 
 async function saveWeekLog() {
   const id = document.getElementById('wl-week').value;
+  const existing = window._weeklyMetrics.find(m => m.id === id) || {};
+
+  const parseNum = (elId, fallback) => {
+    const val = document.getElementById(elId).value;
+    return val !== '' ? parseInt(val) : fallback;
+  };
+  const parseFloat2 = (elId, fallback) => {
+    const val = document.getElementById(elId).value;
+    return val !== '' ? parseFloat(val) : fallback;
+  };
+
   const data = {
-    escalations: parseInt(document.getElementById('wl-escalations').value) || 0,
-    calls: parseInt(document.getElementById('wl-calls').value) || 0,
-    docs_completed: parseInt(document.getElementById('wl-docs').value) || 0,
-    csat_score: parseFloat(document.getElementById('wl-csat').value) || null,
-    time_escalations: parseInt(document.getElementById('wl-t-esc').value) || 0,
-    time_calls: parseInt(document.getElementById('wl-t-calls').value) || 0,
-    time_docs: parseInt(document.getElementById('wl-t-docs').value) || 0,
-    time_async: parseInt(document.getElementById('wl-t-async').value) || 0,
-    time_projects: parseInt(document.getElementById('wl-t-projects').value) || 0,
+    escalations:      parseNum('wl-escalations', existing.escalations ?? 0),
+    calls:            parseNum('wl-calls',        existing.calls ?? 0),
+    docs_completed:   parseNum('wl-docs',         existing.docs_completed ?? 0),
+    csat_score:       parseFloat2('wl-csat',      existing.csat_score ?? null),
+    time_escalations: parseNum('wl-t-esc',        existing.time_escalations ?? 0),
+    time_calls:       parseNum('wl-t-calls',      existing.time_calls ?? 0),
+    time_docs:        parseNum('wl-t-docs',       existing.time_docs ?? 0),
+    time_async:       parseNum('wl-t-async',      existing.time_async ?? 0),
+    time_projects:    parseNum('wl-t-projects',   existing.time_projects ?? 0),
   };
   showToast('Saving…', 'info');
   try {
