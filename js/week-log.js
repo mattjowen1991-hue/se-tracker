@@ -7,56 +7,83 @@ let _wlDocsLog  = [];   // [{ title, url, notes }]
 function renderWeekLog(weeklyMetrics) {
   document.getElementById('week-log-content').innerHTML = `
     <div class="week-log-form">
-      <div class="section-title">Log This Week's Numbers</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Week</label>
-          <select id="wl-week" class="input-field" onchange="populateWeekForm()">
-            ${weeklyMetrics.map(w => `<option value="${w.id}" data-idx="${w.week_index}">${w.week}</option>`).join('')}
-          </select>
+
+      <div class="wl-section">
+        <div class="wl-section-header">
+          <span class="wl-section-title">This week</span>
         </div>
-        <div class="form-group">
-          <label>Escalations Handled</label>
-          <input id="wl-escalations" type="number" class="input-field" placeholder="0" />
-        </div>
-        <div class="form-group">
-          <label>CSAT Score (out of 5)</label>
-          <input id="wl-csat" type="number" step="0.1" min="0.1" max="5" class="input-field" placeholder="e.g. 4.5" />
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Week</label>
+            <select id="wl-week" class="input-field" onchange="populateWeekForm()">
+              ${weeklyMetrics.map(w => `<option value="${w.id}" data-idx="${w.week_index}">${w.week}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Escalations Handled</label>
+            <input id="wl-escalations" type="number" class="input-field" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label>CSAT Score <span class="target-hint">out of 5</span></label>
+            <input id="wl-csat" type="number" step="0.1" min="0.1" max="5" class="input-field" placeholder="e.g. 4.5" />
+          </div>
         </div>
       </div>
 
-      <div class="section-title" style="margin-top:24px">Calls Joined</div>
-      <div id="wl-calls-list" class="wl-item-list"></div>
-      <button class="btn-secondary" style="margin-top:8px" onclick="wlAddCall()">+ Add Call</button>
+      <div class="wl-section">
+        <div class="wl-section-header">
+          <span class="wl-section-title">Calls Joined</span>
+          <span class="wl-section-meta" id="wl-calls-count"></span>
+        </div>
+        <div id="wl-calls-list" class="wl-item-list"></div>
+        <button class="wl-add-btn" onclick="wlAddCall()">+ Add Call</button>
+      </div>
 
-      <div class="section-title" style="margin-top:24px">Docs Completed</div>
-      <div id="wl-docs-list" class="wl-item-list"></div>
-      <button class="btn-secondary" style="margin-top:8px" onclick="wlAddDoc()">+ Add Doc</button>
+      <div class="wl-section">
+        <div class="wl-section-header">
+          <span class="wl-section-title">Docs Completed</span>
+          <span class="wl-section-meta" id="wl-docs-count"></span>
+        </div>
+        <div id="wl-docs-list" class="wl-item-list"></div>
+        <button class="wl-add-btn" onclick="wlAddDoc()">+ Add Doc</button>
+      </div>
 
-      <div class="section-title" style="margin-top:24px">Time Distribution — Actuals (%)</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Escalations & Investigations <span class="target-hint">(target ${TIME_TARGETS.escalations}%)</span></label>
-          <input id="wl-t-esc" type="number" class="input-field" placeholder="${TIME_TARGETS.escalations}" />
+      <div class="wl-section">
+        <div class="wl-section-header">
+          <span class="wl-section-title">Time Distribution <span style="font-weight:400;text-transform:none;letter-spacing:0">— Actuals %</span></span>
+          <span class="wl-section-meta" id="wl-time-total-label">0% of 100%</span>
         </div>
-        <div class="form-group">
-          <label>Calls <span class="target-hint">(target ${TIME_TARGETS.calls}%)</span></label>
-          <input id="wl-t-calls" type="number" class="input-field" placeholder="${TIME_TARGETS.calls}" />
+        <div class="form-grid-5">
+          <div class="form-group">
+            <label>Escalations <span class="target-hint">target ${TIME_TARGETS.escalations}%</span></label>
+            <input id="wl-t-esc" type="number" class="input-field" placeholder="${TIME_TARGETS.escalations}" oninput="wlUpdateTimeTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Calls <span class="target-hint">target ${TIME_TARGETS.calls}%</span></label>
+            <input id="wl-t-calls" type="number" class="input-field" placeholder="${TIME_TARGETS.calls}" oninput="wlUpdateTimeTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Documentation <span class="target-hint">target ${TIME_TARGETS.docs}%</span></label>
+            <input id="wl-t-docs" type="number" class="input-field" placeholder="${TIME_TARGETS.docs}" oninput="wlUpdateTimeTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Cross-team <span class="target-hint">target ${TIME_TARGETS.async}%</span></label>
+            <input id="wl-t-async" type="number" class="input-field" placeholder="${TIME_TARGETS.async}" oninput="wlUpdateTimeTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Projects <span class="target-hint">target ${TIME_TARGETS.projects}%</span></label>
+            <input id="wl-t-projects" type="number" class="input-field" placeholder="${TIME_TARGETS.projects}" oninput="wlUpdateTimeTotal()" />
+          </div>
         </div>
-        <div class="form-group">
-          <label>Documentation <span class="target-hint">(target ${TIME_TARGETS.docs}%)</span></label>
-          <input id="wl-t-docs" type="number" class="input-field" placeholder="${TIME_TARGETS.docs}" />
-        </div>
-        <div class="form-group">
-          <label>Cross-team Async <span class="target-hint">(target ${TIME_TARGETS.async}%)</span></label>
-          <input id="wl-t-async" type="number" class="input-field" placeholder="${TIME_TARGETS.async}" />
-        </div>
-        <div class="form-group">
-          <label>Special Projects <span class="target-hint">(target ${TIME_TARGETS.projects}%)</span></label>
-          <input id="wl-t-projects" type="number" class="input-field" placeholder="${TIME_TARGETS.projects}" />
+        <div class="wl-time-total">
+          <div class="wl-time-bar"><div class="wl-time-bar-fill" id="wl-time-bar-fill" style="width:0%"></div></div>
+          <span id="wl-time-pct">0%</span>
         </div>
       </div>
-      <button class="btn-primary" style="margin-top:20px" onclick="saveWeekLog()">Save Week</button>
+
+      <div class="wl-save-row">
+        <button class="btn-primary" onclick="saveWeekLog()">Save Week</button>
+      </div>
     </div>
 
     <div class="section-title" style="margin-top:32px">All Weekly Data</div>
@@ -91,6 +118,9 @@ function wlRenderCalls() {
   const impls = window._implementations || [];
   const container = document.getElementById('wl-calls-list');
   if (!container) return;
+
+  const countEl = document.getElementById('wl-calls-count');
+  if (countEl) countEl.textContent = _wlCallsLog.length ? `${_wlCallsLog.length} logged` : '';
 
   if (!_wlCallsLog.length) {
     container.innerHTML = '<div class="wl-empty">No calls logged yet.</div>';
@@ -132,6 +162,9 @@ function wlRenderCalls() {
 function wlRenderDocs() {
   const container = document.getElementById('wl-docs-list');
   if (!container) return;
+
+  const countEl = document.getElementById('wl-docs-count');
+  if (countEl) countEl.textContent = _wlDocsLog.length ? `${_wlDocsLog.length} logged` : '';
 
   if (!_wlDocsLog.length) {
     container.innerHTML = '<div class="wl-empty">No docs logged yet.</div>';
@@ -198,6 +231,30 @@ function populateWeekForm() {
   _wlDocsLog  = Array.isArray(w.docs_log)  ? JSON.parse(JSON.stringify(w.docs_log))  : [];
   wlRenderCalls();
   wlRenderDocs();
+  wlUpdateTimeTotal();
+}
+
+// ── Time total indicator ───────────────────────────────────────────────────
+
+function wlUpdateTimeTotal() {
+  const ids = ['wl-t-esc', 'wl-t-calls', 'wl-t-docs', 'wl-t-async', 'wl-t-projects'];
+  const total = ids.reduce((sum, id) => {
+    const el = document.getElementById(id);
+    return sum + (el && el.value !== '' ? parseInt(el.value) || 0 : 0);
+  }, 0);
+  const fill = document.getElementById('wl-time-bar-fill');
+  const pct  = document.getElementById('wl-time-pct');
+  const lbl  = document.getElementById('wl-time-total-label');
+  const capped = Math.min(total, 100);
+  if (fill) {
+    fill.style.width = capped + '%';
+    fill.style.background = total > 100 ? 'var(--red)' : total === 100 ? 'var(--green)' : 'var(--blue)';
+  }
+  if (pct) pct.textContent = total + '%';
+  if (lbl) {
+    lbl.textContent = total + '% of 100%';
+    lbl.className = 'wl-section-meta' + (total > 100 ? ' over' : total === 100 ? ' exact' : '');
+  }
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────
