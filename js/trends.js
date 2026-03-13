@@ -64,9 +64,7 @@ function renderTrends(weeklyMetrics, implementations) {
   thisMon.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
   thisMon.setHours(0,0,0,0);
 
-  // week_index is ascending: 1 = oldest week, maxIdx = current week
-  const maxIdx = Math.max(...weeklyMetrics.map(w => w.week_index || 1), 1);
-
+  // week_index is DESCENDING: 1 = current week, 2 = last week, etc.
   // Normalise any date value to YYYY-MM-DD using LOCAL date parts, not UTC
   // This prevents timezone shifts (e.g. 2026-01-26T00:30Z reading as Jan 25 locally)
   function toDateStr(val) {
@@ -79,7 +77,8 @@ function renderTrends(weeklyMetrics, implementations) {
   }
 
   function weekBounds(wIdx) {
-    const weeksAgo = maxIdx - wIdx;
+    // wIdx=1 is current week, wIdx=2 is last week, etc.
+    const weeksAgo = wIdx - 1;
     const mon = new Date(thisMon);
     mon.setDate(thisMon.getDate() - weeksAgo * 7);
     const sun = new Date(mon);
