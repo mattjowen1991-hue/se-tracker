@@ -588,7 +588,7 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .activity-header { font-weight:600; font-size:13px; margin-bottom:14px; }
 .activity-form  { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:16px; }
 .input-sm { font-size:12px; padding:6px 10px; }
-.activity-timeline { display:flex; flex-direction:column; gap:10px; }
+.activity-timeline { display:flex; flex-direction:column; gap:10px; max-height:480px; overflow-y:auto; padding-right:4px; }
 .activity-entry { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; }
 .activity-entry-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
 .activity-stage-tag { font-size:10px; background:var(--blue)22; color:var(--blue); border-radius:4px; padding:1px 6px; font-weight:600; }
