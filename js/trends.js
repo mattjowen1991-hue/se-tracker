@@ -246,7 +246,10 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'weekly-escalations') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(d.weekNum(week));
+    const bounds = (week.week_start && week.week_end)
+      ? { start: week.week_start, end: week.week_end }
+      : d.weekBounds(d.weekNum(week));
+    const { start, end } = bounds;
     const escs = (window._escalations || []).filter(e => { const ed = toDateStr(e.date); return ed && ed >= start && ed <= end; });
     if (!escs.length) return drillEmpty(chartId, label, 'No escalations logged for this week.');
     return `
