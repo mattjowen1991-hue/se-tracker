@@ -20,6 +20,14 @@ function renderWeekLog(weeklyMetrics) {
             </select>
           </div>
           <div class="form-group">
+            <label>Week Start</label>
+            <input id="wl-week-start" type="date" class="input-field" />
+          </div>
+          <div class="form-group">
+            <label>Week End</label>
+            <input id="wl-week-end" type="date" class="input-field" />
+          </div>
+          <div class="form-group">
             <label>Escalations Handled</label>
             <input id="wl-escalations" type="number" class="input-field" placeholder="0" />
           </div>
@@ -86,13 +94,14 @@ function renderWeekLog(weeklyMetrics) {
     <div class="section-title" style="margin-top:32px">All Weekly Data</div>
     <table class="data-table">
       <thead><tr>
-        <th>Week</th><th>Escalations</th><th>Calls</th><th>Docs</th>
+        <th>Week</th><th>Dates</th><th>Escalations</th><th>Calls</th><th>Docs</th>
         <th>Esc %</th><th>Calls %</th><th>Docs %</th><th>Async %</th><th>Projects %</th>
       </tr></thead>
       <tbody>
         ${weeklyMetrics.map(w => `
           <tr>
             <td>${w.week}</td>
+            <td>${w.week_start && w.week_end ? `${w.week_start} – ${w.week_end}` : '—'}</td>
             <td>${w.escalations ?? 0}</td>
             <td>${(w.calls_log || []).length || w.calls || 0}</td>
             <td>${(w.docs_log || []).length || w.docs_completed || 0}</td>
@@ -215,6 +224,8 @@ function populateWeekForm() {
   const w = window._weeklyMetrics.find(m => m.id === id);
   if (!w) return;
 
+  document.getElementById('wl-week-start').value  = w.week_start ?? '';
+  document.getElementById('wl-week-end').value    = w.week_end ?? '';
   document.getElementById('wl-escalations').value = w.escalations ?? '';
   document.getElementById('wl-t-esc').value       = w.time_escalations ?? '';
   document.getElementById('wl-t-calls').value     = w.time_calls ?? '';
@@ -282,6 +293,8 @@ async function saveWeekLog() {
   }));
 
   const data = {
+    week_start:       document.getElementById('wl-week-start').value || null,
+    week_end:         document.getElementById('wl-week-end').value || null,
     escalations:      parseNum('wl-escalations', existing.escalations ?? 0),
     calls:            cleanCalls.length,
     calls_log:        cleanCalls,
