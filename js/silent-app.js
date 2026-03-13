@@ -1,5 +1,13 @@
 // Silent App Implementations Tab
 
+// Returns today's date as YYYY-MM-DD in LOCAL timezone (not UTC)
+function localDateStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
 const DEFAULT_CHECKLISTS = {
   'Pre-Deployment': [
     { id: 'pd1',  text: 'Confirm Silent App plan is active (Enterprise or Team + add-on)' },
