@@ -92,7 +92,7 @@ function renderTrends(weeklyMetrics, implementations) {
   const saNewData = weeklyMetrics.map(w => {
     const { start, end } = weekBounds(w.week_index || 1);
     return impls.filter(i => {
-      const d = toDateStr(i.created_at);
+      const d = i.created_date || toDateStr(i.created_at);
       if (!d) return false;
       return d >= start && d <= end;
     }).length;
@@ -328,7 +328,7 @@ function buildDrillContent(chartId, idx, label) {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
     const { start, end } = d.weekBounds(week.week_index || 1);
-    const orgs = d.impls.filter(i => { const d2 = toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
+    const orgs = d.impls.filter(i => { const d2 = i.created_date || toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
     if (!orgs.length) return drillEmpty(chartId, label, 'No implementations started this week.');
     return `
       <div class="drill-header">

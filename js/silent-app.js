@@ -662,6 +662,7 @@ async function saveImpl() {
   if (!id) {
     data.stage_entered_at = {};
     data.stage_entered_at[data.stage] = localDateStr();
+    data.created_date = localDateStr();
     data.checklist = {};
     data.activity  = [];
   }
