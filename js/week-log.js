@@ -21,15 +21,15 @@ function renderWeekLog(weeklyMetrics) {
           </div>
           <div class="form-group">
             <label>Week Start</label>
-            <input id="wl-week-start" type="date" class="input-field" />
+            <input id="wl-week-start" type="date" class="input-field" onchange="wlUpdateEscalationCount(this.value, document.getElementById('wl-week-end').value)" />
           </div>
           <div class="form-group">
             <label>Week End</label>
-            <input id="wl-week-end" type="date" class="input-field" />
+            <input id="wl-week-end" type="date" class="input-field" onchange="wlUpdateEscalationCount(document.getElementById('wl-week-start').value, this.value)" />
           </div>
           <div class="form-group">
-            <label>Escalations Handled</label>
-            <input id="wl-escalations" type="number" class="input-field" placeholder="0" />
+            <label>Escalations Handled <span class="target-hint" id="wl-esc-hint"></span></label>
+            <input id="wl-escalations" type="number" class="input-field" placeholder="0" readonly style="background:var(--bg-secondary);cursor:default;opacity:0.8" />
           </div>
 
         </div>
@@ -217,6 +217,24 @@ function wlRemoveDoc(i) {
   wlRenderDocs();
 }
 
+// ── Escalation auto-count ──────────────────────────────────────────────────
+
+function wlUpdateEscalationCount(weekStart, weekEnd) {
+  const el   = document.getElementById('wl-escalations');
+  const hint = document.getElementById('wl-esc-hint');
+  if (!weekStart || !weekEnd) {
+    el.value = 0;
+    if (hint) hint.textContent = 'set date range to auto-count';
+    return;
+  }
+  const escs = (window._escalations || []).filter(e => {
+    if (!e.date) return false;
+    return e.date >= weekStart && e.date <= weekEnd;
+  });
+  el.value = escs.length;
+  if (hint) hint.textContent = `auto-counted from escalations tab`;
+}
+
 // ── Form population ────────────────────────────────────────────────────────
 
 function populateWeekForm() {
@@ -226,7 +244,7 @@ function populateWeekForm() {
 
   document.getElementById('wl-week-start').value  = w.week_start ?? '';
   document.getElementById('wl-week-end').value    = w.week_end ?? '';
-  document.getElementById('wl-escalations').value = w.escalations ?? '';
+  wlUpdateEscalationCount(w.week_start, w.week_end);
   document.getElementById('wl-t-esc').value       = w.time_escalations ?? '';
   document.getElementById('wl-t-calls').value     = w.time_calls ?? '';
   document.getElementById('wl-t-docs').value      = w.time_docs ?? '';
@@ -295,7 +313,7 @@ async function saveWeekLog() {
   const data = {
     week_start:       document.getElementById('wl-week-start').value || null,
     week_end:         document.getElementById('wl-week-end').value || null,
-    escalations:      parseNum('wl-escalations', existing.escalations ?? 0),
+    escalations:      parseInt(document.getElementById('wl-escalations').value) || 0,
     calls:            cleanCalls.length,
     calls_log:        cleanCalls,
     docs_completed:   cleanDocs.length,
