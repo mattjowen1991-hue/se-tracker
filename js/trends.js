@@ -64,20 +64,37 @@ function renderTrends(weeklyMetrics, implementations) {
   thisMon.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
   thisMon.setHours(0,0,0,0);
 
+  // week_index is ascending: 1 = oldest week, maxIdx = current week
+  const maxIdx = Math.max(...weeklyMetrics.map(w => w.week_index || 1), 1);
+
+  // Normalise any date value to YYYY-MM-DD using LOCAL date parts, not UTC
+  // This prevents timezone shifts (e.g. 2026-01-26T00:30Z reading as Jan 25 locally)
+  function toDateStr(val) {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const d = new Date(val);
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
   function weekBounds(wIdx) {
+    const weeksAgo = maxIdx - wIdx;
     const mon = new Date(thisMon);
-    mon.setDate(thisMon.getDate() - (wIdx - 1) * 7);
+    mon.setDate(thisMon.getDate() - weeksAgo * 7);
     const sun = new Date(mon);
     sun.setDate(mon.getDate() + 6);
-    const fmt = d => d.toISOString().slice(0,10);
+    const fmt = d => d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
     return { start: fmt(mon), end: fmt(sun) };
   }
 
   const saNewData = weeklyMetrics.map(w => {
     const { start, end } = weekBounds(w.week_index || 1);
     return impls.filter(i => {
-      if (!i.created_at) return false;
-      const d = i.created_at.slice(0, 10);
+      const d = toDateStr(i.created_at);
+      if (!d) return false;
       return d >= start && d <= end;
     }).length;
   });
@@ -85,7 +102,7 @@ function renderTrends(weeklyMetrics, implementations) {
   const saStableData = weeklyMetrics.map(w => {
     const { start, end } = weekBounds(w.week_index || 1);
     return impls.filter(i => {
-      const entered = (i.stage_entered_at || {})['Stability'];
+      const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       if (!entered) return false;
       return entered >= start && entered <= end;
     }).length;
@@ -101,7 +118,7 @@ function renderTrends(weeklyMetrics, implementations) {
     avgDaysData = weeklyMetrics.map(w => {
       const { end } = weekBounds(w.week_index || 1);
       const done = completed.filter(i => {
-        const stab = (i.stage_entered_at || {})['Stability'];
+        const stab = toDateStr((i.stage_entered_at || {})['Stability']);
         return stab && stab <= end;
       });
       if (!done.length) return 0;
@@ -225,7 +242,7 @@ function buildDrillContent(chartId, idx, label) {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
     const { start, end } = d.weekBounds(week.week_index || 1);
-    const escs = (window._escalations || []).filter(e => e.date && e.date >= start && e.date <= end);
+    const escs = (window._escalations || []).filter(e => { const ed = toDateStr(e.date); return ed && ed >= start && ed <= end; });
     if (!escs.length) return drillEmpty(chartId, label, 'No escalations logged for this week.');
     return `
       <div class="drill-header">
@@ -312,7 +329,7 @@ function buildDrillContent(chartId, idx, label) {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
     const { start, end } = d.weekBounds(week.week_index || 1);
-    const orgs = d.impls.filter(i => i.created_at && i.created_at.slice(0,10) >= start && i.created_at.slice(0,10) <= end);
+    const orgs = d.impls.filter(i => { const d2 = toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
     if (!orgs.length) return drillEmpty(chartId, label, 'No implementations started this week.');
     return `
       <div class="drill-header">
@@ -327,7 +344,7 @@ function buildDrillContent(chartId, idx, label) {
     if (!week) return drillEmpty(chartId, label);
     const { start, end } = d.weekBounds(week.week_index || 1);
     const orgs = d.impls.filter(i => {
-      const entered = (i.stage_entered_at || {})['Stability'];
+      const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       return entered && entered >= start && entered <= end;
     });
     if (!orgs.length) return drillEmpty(chartId, label, 'No implementations reached Stability this week.');
@@ -344,7 +361,7 @@ function buildDrillContent(chartId, idx, label) {
     if (!week) return drillEmpty(chartId, label);
     const { end } = d.weekBounds(week.week_index || 1);
     const done = d.completed.filter(i => {
-      const stab = (i.stage_entered_at || {})['Stability'];
+      const stab = toDateStr((i.stage_entered_at || {})['Stability']);
       return stab && stab <= end;
     });
     if (!done.length) return drillEmpty(chartId, label, 'No completed implementations by this point.');
