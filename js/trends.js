@@ -89,8 +89,15 @@ function renderTrends(weeklyMetrics, implementations) {
     return { start: fmt(mon), end: fmt(sun) };
   }
 
+  // Derive week number from the label (e.g. "W1" -> 1, "W2" -> 2).
+  // W1 = current week, W2 = last week (descending). More reliable than
+  // week_index from Supabase which can be null or mismatched.
+  function weekNum(w) {
+    return parseInt((w.week || 'W1').replace(/[^0-9]/g, '')) || 1;
+  }
+
   const saNewData = weeklyMetrics.map(w => {
-    const { start, end } = weekBounds(w.week_index || 1);
+    const { start, end } = weekBounds(weekNum(w));
     return impls.filter(i => {
       const d = i.created_date || toDateStr(i.created_at);
       if (!d) return false;
@@ -99,7 +106,7 @@ function renderTrends(weeklyMetrics, implementations) {
   });
 
   const saStableData = weeklyMetrics.map(w => {
-    const { start, end } = weekBounds(w.week_index || 1);
+    const { start, end } = weekBounds(weekNum(w));
     return impls.filter(i => {
       const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       if (!entered) return false;
@@ -115,7 +122,7 @@ function renderTrends(weeklyMetrics, implementations) {
   let avgDaysData = [];
   if (weeks.length > 0) {
     avgDaysData = weeklyMetrics.map(w => {
-      const { end } = weekBounds(w.week_index || 1);
+      const { end } = weekBounds(weekNum(w));
       const done = completed.filter(i => {
         const stab = toDateStr((i.stage_entered_at || {})['Stability']);
         return stab && stab <= end;
@@ -136,14 +143,14 @@ function renderTrends(weeklyMetrics, implementations) {
   const totalActive = impls.length;
 
   _drillData = {
-    'chart-esc':       { type: 'weekly-escalations', weeks: weeklyMetrics, weekBounds },
+    'chart-esc':       { type: 'weekly-escalations', weeks: weeklyMetrics, weekBounds, weekNum },
     'chart-calls':     { type: 'weekly-calls',        weeks: weeklyMetrics },
     'chart-csat':      { type: 'weekly-csat',          weeks: weeklyMetrics },
     'chart-docs':      { type: 'weekly-docs',          weeks: weeklyMetrics },
     'chart-sa-stage':  { type: 'sa-stage',  stageKeys, stageLabels, impls },
-    'chart-sa-new':    { type: 'sa-new',    weeks: weeklyMetrics, impls, weekBounds },
-    'chart-sa-stable': { type: 'sa-stable', weeks: weeklyMetrics, impls, weekBounds },
-    'chart-sa-time':   { type: 'sa-time',   weeks: weeklyMetrics, completed, weekBounds }
+    'chart-sa-new':    { type: 'sa-new',    weeks: weeklyMetrics, impls, weekBounds, weekNum },
+    'chart-sa-stable': { type: 'sa-stable', weeks: weeklyMetrics, impls, weekBounds, weekNum },
+    'chart-sa-time':   { type: 'sa-time',   weeks: weeklyMetrics, completed, weekBounds, weekNum }
   };
 
   document.getElementById('trends-content').innerHTML = `
@@ -240,7 +247,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'weekly-escalations') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(week.week_index || 1);
+    const { start, end } = d.weekBounds(d.weekNum(week));
     const escs = (window._escalations || []).filter(e => { const ed = toDateStr(e.date); return ed && ed >= start && ed <= end; });
     if (!escs.length) return drillEmpty(chartId, label, 'No escalations logged for this week.');
     return `
@@ -327,7 +334,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-new') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(week.week_index || 1);
+    const { start, end } = d.weekBounds(d.weekNum(week));
     const orgs = d.impls.filter(i => { const d2 = i.created_date || toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
     if (!orgs.length) return drillEmpty(chartId, label, 'No implementations started this week.');
     return `
@@ -341,7 +348,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-stable') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(week.week_index || 1);
+    const { start, end } = d.weekBounds(d.weekNum(week));
     const orgs = d.impls.filter(i => {
       const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       return entered && entered >= start && entered <= end;
@@ -358,7 +365,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-time') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { end } = d.weekBounds(week.week_index || 1);
+    const { end } = d.weekBounds(d.weekNum(week));
     const done = d.completed.filter(i => {
       const stab = toDateStr((i.stage_entered_at || {})['Stability']);
       return stab && stab <= end;
