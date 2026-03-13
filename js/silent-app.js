@@ -90,6 +90,22 @@ function renderSilentApp(implementations) {
 
 // ── Modal HTML ────────────────────────────────────────────────────────────────
 
+function renderUnarchiveModal() {
+  var opts = STAGES.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  return '<div id="unarchive-modal" class="modal hidden">' +
+    '<div class="modal-box">' +
+      '<h3>Restore Implementation</h3>' +
+      '<p style="margin:0 0 12px;color:var(--muted);font-size:13px">Where should this go back to, and why?</p>' +
+      '<select id="unarchive-stage" class="input-field" style="margin-bottom:10px">' + opts + '</select>' +
+      '<textarea id="unarchive-note" placeholder="Reason for restoring (required)" class="input-field" rows="3" style="margin-bottom:12px"></textarea>' +
+      '<div class="modal-actions">' +
+        '<button class="btn-secondary" onclick="closeUnarchiveModal()">Cancel</button>' +
+        '<button class="btn-primary" onclick="confirmUnarchive()">Restore</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 function renderImplModal(impl) {
   const os = impl && Array.isArray(impl.os) ? impl.os : [];
   return '<div id="impl-modal" class="modal hidden">' +
@@ -433,20 +449,7 @@ function renderImplDetail(impl, allImpls) {
       '</div>' +
     '</div>' +
     renderImplModal(impl) +
-    '<div id="unarchive-modal" class="modal hidden">' +
-      '<div class="modal-box">' +
-        '<h3>Restore Implementation</h3>' +
-        '<p style="margin:0 0 12px;color:var(--muted);font-size:13px">Where should this implementation be restored to, and why?</p>' +
-        '<select id="unarchive-stage" class="input-field" style="margin-bottom:10px">' +
-          STAGES.map(function(s){ return \'<option value="\' + s + \'">\' + s + \'</option>\'; }).join(\'\') +
-        \'</select>\' +
-        \'<textarea id="unarchive-note" placeholder="Reason for restoring (required)" class="input-field" rows="3" style="margin-bottom:12px"></textarea>\' +
-        \'<div class="modal-actions">\' +
-          \'<button class="btn-secondary" onclick="closeUnarchiveModal()">Cancel</button>\' +
-          \'<button class="btn-primary" onclick="confirmUnarchive()">Restore</button>\' +
-        \'</div>\' +
-      \'</div>\' +
-    \'</div>\';
+    renderUnarchiveModal();
 }
 
 // ── Checklist toggle ──────────────────────────────────────────────────────────
