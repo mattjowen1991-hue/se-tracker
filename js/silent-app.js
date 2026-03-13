@@ -113,6 +113,8 @@ function renderImplModal(impl) {
           '<option value="Red"'   + (impl && impl.rag==='Red'  ?' selected':'') + '>Red - At Risk</option>' +
         '</select>' +
         '<input id="impl-csat" placeholder="CSAT score (1-10, optional)" type="number" min="1" max="10" class="input-field" value="' + (impl ? impl.csat || '' : '') + '" />' +
+        '<input id="impl-hubspot-url" placeholder="HubSpot URL (optional)" class="input-field" value="' + (impl ? impl.hubspot_url || '' : '') + '" />' +
+        '<input id="impl-slack-url" placeholder="Slack URL (optional)" class="input-field" value="' + (impl ? impl.slack_url || '' : '') + '" />' +
         '<textarea id="impl-notes" placeholder="Notes" class="input-field" rows="3" style="grid-column:1/-1">' + (impl ? impl.notes || '' : '') + '</textarea>' +
       '</div>' +
       '<input type="hidden" id="impl-edit-id" value="' + (impl ? impl.id : '') + '" />' +
@@ -352,8 +354,7 @@ function renderImplDetail(impl, allImpls) {
           '</div>' +
           '<div class="activity-note">' + entry.note + '</div>' +
           '<div class="activity-links">' +
-            (entry.slack_url   ? '<a href="' + entry.slack_url   + '" target="_blank" class="activity-link">💬 Slack thread</a>' : '') +
-            (entry.hubspot_url ? '<a href="' + entry.hubspot_url + '" target="_blank" class="activity-link">🔗 HubSpot</a>' : '') +
+            (entry.url ? '<a href="' + entry.url + '" target="_blank" class="activity-link">🔗 Link</a>' : '') +
           '</div>' +
         '</div>';
       }).join('');
@@ -375,6 +376,11 @@ function renderImplDetail(impl, allImpls) {
                 (impl.deployment_method ? ' &nbsp;·&nbsp; ' + impl.deployment_method : '') +
                 (impl.mdm_type ? ' &nbsp;·&nbsp; MDM: ' + impl.mdm_type : '') +
               '</div>' +
+              ((impl.hubspot_url || impl.slack_url) ? '<div class="detail-meta" style="margin-top:6px">' +
+                (impl.hubspot_url ? '<a href="' + impl.hubspot_url + '" target="_blank" class="activity-link">🔗 HubSpot</a>' : '') +
+                (impl.hubspot_url && impl.slack_url ? ' &nbsp;' : '') +
+                (impl.slack_url ? '<a href="' + impl.slack_url + '" target="_blank" class="activity-link">💬 Slack</a>' : '') +
+              '</div>' : '') +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">' +
               '<span class="rag-badge-lg" style="background:' + ragColour + '22;color:' + ragColour + ';border:1px solid ' + ragColour + '66">' + ragEmoji + ' ' + impl.rag + '</span>' +
@@ -405,8 +411,7 @@ function renderImplDetail(impl, allImpls) {
               '<option value="Red">Red</option>' +
             '</select>' +
             '<textarea id="act-note" placeholder="What happened? What\'s next?" class="input-field" rows="3"></textarea>' +
-            '<input id="act-slack" placeholder="Slack thread URL (optional)" class="input-field input-sm" />' +
-            '<input id="act-hubspot" placeholder="HubSpot URL (optional)" class="input-field input-sm" />' +
+            '<input id="act-url" placeholder="URL (optional — Slack, HubSpot, doc, etc.)" class="input-field input-sm" />' +
             '<button class="btn-primary btn-sm" style="width:100%" onclick="addActivityEntry(\'' + impl.id + '\')">Add Entry</button>' +
           '</div>' +
           '<div class="activity-timeline">' + timelineHtml + '</div>' +
@@ -442,15 +447,13 @@ async function addActivityEntry(implId) {
   var stage       = document.getElementById('act-stage').value;
   var rag         = document.getElementById('act-rag').value;
   var note        = document.getElementById('act-note').value.trim();
-  var slack_url   = document.getElementById('act-slack').value.trim();
-  var hubspot_url = document.getElementById('act-hubspot').value.trim();
+  var url = document.getElementById('act-url').value.trim();
 
   if (!note) { showToast('Please add a note', 'error'); return; }
 
   var entry = { stage: stage, date: new Date().toISOString().slice(0,10), note: note };
   if (rag)         entry.rag         = rag;
-  if (slack_url)   entry.slack_url   = slack_url;
-  if (hubspot_url) entry.hubspot_url = hubspot_url;
+  if (url) entry.url = url;
 
   var activity = (Array.isArray(impl.activity) ? impl.activity : []).concat([entry]);
   var update   = { activity: activity };
@@ -487,7 +490,7 @@ function setViewMode(mode) {
 function showAddImplModal() {
   document.getElementById('impl-modal-title').textContent = 'Add Implementation';
   document.getElementById('impl-edit-id').value = '';
-  ['impl-org','impl-contact-name','impl-contact-email','impl-org-size','impl-mdm','impl-notes','impl-csat'].forEach(function(id){
+  ['impl-org','impl-contact-name','impl-contact-email','impl-org-size','impl-mdm','impl-notes','impl-csat','impl-hubspot-url','impl-slack-url'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   document.querySelectorAll('.impl-os-cb').forEach(function(cb){ cb.checked = false; });
@@ -515,6 +518,8 @@ function editImpl(id) {
   document.getElementById('impl-stage').value      = impl.stage || STAGES[0];
   document.getElementById('impl-rag').value         = impl.rag || 'Green';
   document.getElementById('impl-csat').value        = impl.csat || '';
+  document.getElementById('impl-hubspot-url').value = impl.hubspot_url || '';
+  document.getElementById('impl-slack-url').value   = impl.slack_url || '';
   document.getElementById('impl-notes').value       = impl.notes || '';
   var osArr = Array.isArray(impl.os) ? impl.os : [];
   document.querySelectorAll('.impl-os-cb').forEach(function(cb){ cb.checked = osArr.includes(cb.value); });
@@ -534,6 +539,8 @@ async function saveImpl() {
     stage:             document.getElementById('impl-stage').value,
     rag:               document.getElementById('impl-rag').value,
     csat:              parseInt(document.getElementById('impl-csat').value) || null,
+    hubspot_url:       document.getElementById('impl-hubspot-url').value.trim() || null,
+    slack_url:         document.getElementById('impl-slack-url').value.trim() || null,
     notes:             document.getElementById('impl-notes').value.trim(),
     os:                os.length ? os : null,
   };
