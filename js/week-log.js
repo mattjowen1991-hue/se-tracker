@@ -189,6 +189,7 @@ function wlToggleMonth(month) {
   if (_wlOpenMonths.has(month)) {
     _wlOpenMonths.delete(month);
   } else {
+    _wlOpenMonths.clear();
     _wlOpenMonths.add(month);
   }
   renderWeekLog(window._weeklyMetrics);

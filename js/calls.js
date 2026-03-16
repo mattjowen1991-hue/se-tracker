@@ -156,14 +156,14 @@ async function saveCall() {
     if (implId) {
       const impl = (window._implementations || []).find(i => i.id === implId);
       if (impl) {
-        const log = Array.isArray(impl.activity_log) ? [...impl.activity_log] : [];
+        const log = Array.isArray(impl.activity) ? [...impl.activity] : [];
         log.push({
           date:  date,
           note:  `📞 Call joined with ${org || 'customer'} — ${notes || 'no notes'}`,
           slack: null,
           hs:    null
         });
-        await updateImplementation(implId, { activity_log: log });
+        await updateImplementation(implId, { activity: log });
       }
     }
 
@@ -177,7 +177,35 @@ async function saveCall() {
 async function deleteCallRecord(id) {
   if (!confirm('Delete this call?')) return;
   try {
+    // Find the call before deleting so we can clean up linked records
+    const call = (window._calls || []).find(c => c.id === id);
+
     await deleteCall(id);
+
+    // Remove the matching timeline entry from the linked escalation
+    if (call && call.related_escalation_id) {
+      const esc = (window._escalations || []).find(e => e.id === call.related_escalation_id);
+      if (esc && Array.isArray(esc.timeline)) {
+        const marker = `📞 Call joined with ${call.org || 'customer'}`;
+        const cleaned = esc.timeline.filter(t => !t.note || !t.note.startsWith(marker));
+        if (cleaned.length !== esc.timeline.length) {
+          await updateEscalation(call.related_escalation_id, { timeline: cleaned });
+        }
+      }
+    }
+
+    // Remove the matching activity entry from the linked implementation
+    if (call && call.related_impl_id) {
+      const impl = (window._implementations || []).find(i => i.id === call.related_impl_id);
+      if (impl && Array.isArray(impl.activity)) {
+        const marker = `📞 Call joined with ${call.org || 'customer'}`;
+        const cleaned = impl.activity.filter(a => !a.note || !a.note.startsWith(marker));
+        if (cleaned.length !== impl.activity.length) {
+          await updateImplementation(call.related_impl_id, { activity: cleaned });
+        }
+      }
+    }
+
     _viewingCall = null;
     await reloadAll();
     showToast('Call deleted', 'success');
