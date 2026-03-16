@@ -59,10 +59,40 @@ async function updateEscalation(id, data) {
   return dbRequest(`escalations?id=eq.${id}`, 'PATCH', data);
 }
 
-async function updateEscalation(id, data) {
-  return dbRequest(`escalations?id=eq.${id}`, 'PATCH', data);
-}
-
 async function deleteEscalation(id) {
   return dbRequest(`escalations?id=eq.${id}`, 'DELETE');
+}
+
+// Calls
+async function getCalls() {
+  return dbRequest('calls', 'GET', null, '?order=date.desc');
+}
+
+async function addCall(data) {
+  return dbRequest('calls', 'POST', data);
+}
+
+async function updateCall(id, data) {
+  return dbRequest(`calls?id=eq.${id}`, 'PATCH', data);
+}
+
+async function deleteCall(id) {
+  return dbRequest(`calls?id=eq.${id}`, 'DELETE');
+}
+
+// Docs
+async function getDocs() {
+  return dbRequest('docs', 'GET', null, '?order=date.desc');
+}
+
+async function addDoc(data) {
+  return dbRequest('docs', 'POST', data);
+}
+
+async function updateDoc(id, data) {
+  return dbRequest(`docs?id=eq.${id}`, 'PATCH', data);
+}
+
+async function deleteDoc(id) {
+  return dbRequest(`docs?id=eq.${id}`, 'DELETE');
 }
