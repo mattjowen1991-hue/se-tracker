@@ -2456,3 +2456,47 @@ body.modal-open { overflow: hidden; }
 /* ── Help overlay scroll lock ───────────────────────────────────── */
 .help-overlay { overflow: hidden; }
 .help-modal { overflow: hidden; }
+
+/* ── Responsive / iframe fixes ───────────────────────────────────── */
+
+/* Prevent any horizontal overflow at the root */
+html, body { overflow-x: hidden; }
+
+/* Kanban: 4 cols → 2 cols → 1 col as width shrinks */
+.kanban-board {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 900px) {
+  .kanban-board { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  .kanban-board { grid-template-columns: 1fr; }
+}
+
+/* Header: wrap on narrow widths */
+.header-inner {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Tab nav: allow wrapping */
+.tab-nav { flex-wrap: wrap; }
+
+/* KPI stats row: wrap */
+.sa-stats { flex-wrap: wrap; }
+.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+
+/* Toolbar: wrap */
+.toolbar { flex-wrap: wrap; }
+.sa-toolbar { flex-wrap: wrap; }
+
+/* Detail meta grid: already uses auto-fill, keep it */
+.detail-meta-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+/* Help modal: full width on narrow */
+@media (max-width: 600px) {
+  .help-modal { max-width: 100%; border-radius: 0; }
+  .modal-box  { width: 95vw; }
+}
