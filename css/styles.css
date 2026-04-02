@@ -2467,19 +2467,30 @@ html, body { overflow-x: hidden; }
   border-bottom: 1px solid var(--border);
 }
 
-/* Row 1: brand left, controls right */
+/* Row 1: brand left, controls right — single line, no wrap */
 .header-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
   gap: 12px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 .header-controls {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Row 2: tabs — scrollable horizontally, never wrap */
