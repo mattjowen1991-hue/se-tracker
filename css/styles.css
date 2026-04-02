@@ -2459,38 +2459,65 @@ body.modal-open { overflow: hidden; }
 
 /* ── Responsive / iframe fixes ───────────────────────────────────── */
 
-/* Prevent any horizontal overflow at the root */
-html, body { overflow-x: hidden; }
+/* Prevent horizontal overflow at the root */
+html, body { overflow-x: hidden; max-width: 100%; }
+
+/* Header: keep brand and controls on one line, let tabs scroll underneath */
+.app-header { padding: 0; }
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* Tab nav: scroll horizontally instead of wrapping */
+.tab-nav.tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 16px;
+  gap: 2px;
+  flex: none;
+  width: 100%;
+  border-top: 1px solid var(--border);
+}
+.tab-nav.tabs::-webkit-scrollbar { display: none; }
+.tab-btn { white-space: nowrap; flex-shrink: 0; }
+
+/* Theme toggle: keep compact */
+.theme-toggle { flex-shrink: 0; }
+.help-btn { flex-shrink: 0; }
+
+/* Brand: allow shrinking on narrow */
+.header-brand { flex-shrink: 1; min-width: 0; }
+.header-brand-text { min-width: 0; }
+.header-sub { display: none; } /* hide subtitle on narrow */
+
+/* Main content: full width with tighter padding */
+.app-main { padding: 16px; }
 
 /* Kanban: 4 cols → 2 cols → 1 col as width shrinks */
-.kanban-board {
-  grid-template-columns: repeat(4, 1fr);
-}
 @media (max-width: 900px) {
   .kanban-board { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 540px) {
+@media (max-width: 500px) {
   .kanban-board { grid-template-columns: 1fr; }
 }
 
-/* Header: wrap on narrow widths */
-.header-inner {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Tab nav: allow wrapping */
-.tab-nav { flex-wrap: wrap; }
-
 /* KPI stats row: wrap */
 .sa-stats { flex-wrap: wrap; }
-.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 
 /* Toolbar: wrap */
 .toolbar { flex-wrap: wrap; }
 .sa-toolbar { flex-wrap: wrap; }
 
-/* Detail meta grid: already uses auto-fill, keep it */
+/* Detail meta grid */
 .detail-meta-grid {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
