@@ -3,96 +3,126 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SE Metrics Dashboard — Matt Owen</title>
+  <title>SE Tracker</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-  <div class="header">
-    <div>
-      <div class="header-title">// SE_METRICS</div>
-      <div class="header-sub">Matt Owen · Support Engineer · Hubstaff</div>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="26" height="26" rx="4" fill="#0b1520" stroke="#1e3048" stroke-width="1.5"/>
+          <rect x="5" y="7" width="4" height="14" rx="1" fill="#1C8EF9" opacity="0.3"/>
+          <rect x="5" y="13" width="4" height="8" rx="1" fill="#1C8EF9"/>
+          <rect x="12" y="7" width="4" height="14" rx="1" fill="#1C8EF9" opacity="0.3"/>
+          <rect x="12" y="9" width="4" height="12" rx="1" fill="#36C5B0"/>
+          <rect x="19" y="7" width="4" height="14" rx="1" fill="#1C8EF9" opacity="0.3"/>
+          <rect x="19" y="7" width="4" height="6" rx="1" fill="#F59E0B"/>
+        </svg>
+        <div class="header-brand-text">
+          <div class="header-title">// SE_TRACKER</div>
+          <div class="header-sub">Matt Owen &middot; Support Engineer &middot; Hubstaff</div>
+        </div>
+      </div>
+      <nav class="tab-nav tabs">
+        <button class="tab-btn active" data-tab="deployments">Deployments</button>
+        <button class="tab-btn" data-tab="se-escalations">SE Escalations</button>
+        <button class="tab-btn" data-tab="deployment-escalations">Deployment Escalations</button>
+        <button class="tab-btn" data-tab="docs">Documentation</button>
+      </nav>
+      <button class="help-btn" onclick="openHelp()" title="Help guide">?</button>
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle light/dark theme">
+        <div class="theme-toggle-track" id="theme-track">
+          <div class="theme-toggle-thumb"></div>
+        </div>
+        <span class="theme-toggle-label" id="theme-label">DARK</span>
+      </button>
     </div>
-    <div class="phase-pill">PHASE 1 — BASELINE</div>
-  </div>
+  </header>
 
-  <nav class="tabs">
-    <button class="tab-btn active" data-tab="overview">Overview</button>
-    <button class="tab-btn" data-tab="silent-app">Silent App</button>
-    <button class="tab-btn" data-tab="escalations">Escalations</button>
-    <button class="tab-btn" data-tab="insights">Insights</button>
-    <button class="tab-btn" data-tab="trends">Trends</button>
-    <button class="tab-btn" data-tab="calls">Calls</button>
-    <button class="tab-btn" data-tab="docs">Docs</button>
-    <button class="tab-btn" data-tab="week-log">Week Log</button>
-  </nav>
+  <main class="app-main">
 
-  <main class="main">
-    <div id="overview-tab" class="tab-content">
-      <div id="overview-content">Loading…</div>
+    <div id="deployments-tab" class="tab-content">
+      <div id="silent-app-content">
+        <div class="loading">Loading deployments…</div>
+      </div>
     </div>
-    <div id="silent-app-tab" class="tab-content hidden">
-      <div id="silent-app-content">Loading…</div>
+
+    <div id="se-escalations-tab" class="tab-content hidden">
+      <div id="se-escalations-content">
+        <div class="loading">Loading SE escalations…</div>
+      </div>
     </div>
-    <div id="escalations-tab" class="tab-content hidden">
-      <div id="escalations-content">Loading…</div>
+
+    <div id="deployment-escalations-tab" class="tab-content hidden">
+      <div id="escalations-content">
+        <div class="loading">Loading deployment escalations…</div>
+      </div>
     </div>
-    <div id="insights-tab" class="tab-content hidden">
-      <div id="insights-content">Loading…</div>
-    </div>
-    <div id="trends-tab" class="tab-content hidden">
-      <div id="trends-content">Loading…</div>
-    </div>
-    <div id="calls-tab" class="tab-content hidden">
-      <div id="calls-content">Loading…</div>
-    </div>
+
     <div id="docs-tab" class="tab-content hidden">
-      <div id="docs-content">Loading…</div>
+      <div id="docs-content">
+        <div class="loading">Loading documentation…</div>
+      </div>
     </div>
-    <div id="week-log-tab" class="tab-content hidden">
-      <div id="week-log-content">Loading…</div>
-    </div>
+
   </main>
 
   <div id="toast" class="toast"></div>
 
-  <!-- JS modules in dependency order -->
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
-  <script src="js/overview.js"></script>
   <script src="js/silent-app.js"></script>
+  <script src="js/se-escalations.js"></script>
   <script src="js/escalations.js"></script>
-  <script src="js/insights.js"></script>
-  <script src="js/trends.js"></script>
-  <script src="js/week-log.js"></script>
-  <script src="js/calls.js"></script>
   <script src="js/docs.js"></script>
+  <script src="js/help.js"></script>
   <script src="js/app.js"></script>
 
-  <!-- Footer -->
-  <footer class="app-footer">
-    <span>SE Metrics Dashboard · Matt Owen · Hubstaff</span>
-    <span class="footer-sep">·</span>
-    <button class="footer-help-btn" onclick="openHelpModal()">📖 Help Guide</button>
-  </footer>
-
   <!-- Help Modal -->
-  <div class="help-overlay hidden" id="help-overlay" onclick="closeHelpModal()">
-    <div class="help-modal" onclick="event.stopPropagation()">
+  <div id="help-overlay" class="help-overlay hidden" onclick="if(event.target===this)closeHelp()">
+    <div class="help-modal">
       <div class="help-modal-header">
-        <span class="help-modal-title">📖 Help Guide</span>
-        <button class="help-close-btn" onclick="closeHelpModal()">✕</button>
-      </div>
-      <div class="help-nav">
-        <button class="help-nav-btn active" onclick="showHelpTab('overview')">🏠 Overview</button>
-        <button class="help-nav-btn" onclick="showHelpTab('silent-app')">🖥️ Silent App</button>
-        <button class="help-nav-btn" onclick="showHelpTab('escalations')">🔺 Escalations</button>
-        <button class="help-nav-btn" onclick="showHelpTab('week-log')">📅 Week Log</button>
-        <button class="help-nav-btn" onclick="showHelpTab('tips')">💡 Tips</button>
+        <div class="help-modal-title">// HELP_GUIDE</div>
+        <div class="help-nav">
+          <button class="help-nav-btn active" onclick="showHelpSection('deployments')">Deployments</button>
+          <button class="help-nav-btn" onclick="showHelpSection('se-escalations')">SE Escalations</button>
+          <button class="help-nav-btn" onclick="showHelpSection('deployment-escalations')">Deployment Escalations</button>
+          <button class="help-nav-btn" onclick="showHelpSection('docs')">Documentation</button>
+        </div>
+        <button class="help-close-btn" onclick="closeHelp()">✕</button>
       </div>
       <div class="help-body" id="help-body"></div>
     </div>
   </div>
 
+  <script>
+    // Theme toggle — persists in localStorage
+    (function() {
+      const saved = localStorage.getItem('se-tracker-theme') || 'dark';
+      applyTheme(saved);
+    })();
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const track  = document.getElementById('theme-track');
+      const label  = document.getElementById('theme-label');
+      if (!track || !label) return;
+      if (theme === 'light') {
+        track.classList.add('on');
+        label.textContent = 'LIGHT';
+      } else {
+        track.classList.remove('on');
+        label.textContent = 'DARK';
+      }
+      localStorage.setItem('se-tracker-theme', theme);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+  </script>
 </body>
 </html>

@@ -1,385 +1,437 @@
-// Escalations tab
+// Deployment Escalations tab — every escalation is linked to a deployment
 
-let _viewingEscalation = null; // id of escalation open in detail view
+let _viewingEscalation = null;
 
-function getKnownOrgs() {
-  const orgs = window._escalations.map(e => e.org).filter(Boolean);
-  return [...new Set(orgs)].sort();
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function localEscDate() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
 }
 
-function renderEscalations(escalations) {
-  const total = escalations.length;
-  const resolved = escalations.filter(e => e.outcome === 'Resolved by SE').length;
-  const escalatedEng = escalations.filter(e => e.outcome === 'Escalated to Engineering').length;
+function getDeploymentById(id) {
+  return (window._implementations || []).find(i => i.id === id) || null;
+}
 
-  // Route to detail view if one is open
+function getDeploymentName(implId) {
+  const impl = getDeploymentById(implId);
+  return impl ? impl.org : '—';
+}
+
+function buildDeploymentOptions(selectedId) {
+  const impls = window._implementations || [];
+  if (impls.length === 0) {
+    return '<option value="">No deployments found — add one first</option>';
+  }
+  return impls.map(i =>
+    `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>[${i.stage}] ${i.org}</option>`
+  ).join('');
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+
+function renderEscalations(escalations) {
   if (_viewingEscalation) {
     const esc = escalations.find(e => e.id === _viewingEscalation);
     if (esc) { renderEscalationDetail(esc); return; }
-    _viewingEscalation = null; // escalation was deleted, fall through to list
+    _viewingEscalation = null;
   }
+
+  const total    = escalations.length;
+  const resolved = escalations.filter(e => e.outcome === 'Resolved by SE').length;
+  const toEng    = escalations.filter(e => e.outcome === 'Escalated to Engineering').length;
+  const pending  = escalations.filter(e => e.outcome === 'Pending').length;
 
   document.getElementById('escalations-content').innerHTML = `
     <div class="toolbar">
       <div class="kpi-row">
         <div class="kpi-small"><span class="kpi-num">${total}</span> Total</div>
         <div class="kpi-small"><span class="kpi-num green">${resolved}</span> Resolved by SE</div>
-        <div class="kpi-small"><span class="kpi-num amber">${escalatedEng}</span> To Engineering</div>
+        <div class="kpi-small"><span class="kpi-num amber">${toEng}</span> To Engineering</div>
+        <div class="kpi-small"><span class="kpi-num red">${pending}</span> Pending</div>
       </div>
       <button class="btn-primary" onclick="showAddEscModal()">+ Log Escalation</button>
     </div>
+
+    ${escalations.length === 0 && (window._implementations || []).length === 0 ? `
+      <div class="empty-state">
+        <p>You need at least one deployment before logging a deployment escalation.</p>
+        <button class="btn-secondary" onclick="switchTab('deployments')">Go to Deployments →</button>
+      </div>` : `
     <table class="data-table">
       <thead><tr>
-        <th>Date</th><th>Org</th><th>Type</th><th>Outcome</th><th>Days</th><th>Notes</th><th></th>
+        <th>Date</th>
+        <th>Deployment</th>
+        <th>Type</th>
+        <th>Outcome</th>
+        <th>Days</th>
+        <th>Notes</th>
+        <th></th>
       </tr></thead>
       <tbody>
         ${escalations.length === 0
-          ? '<tr><td colspan="7" class="empty-cell">No escalations logged yet.</td></tr>'
+          ? '<tr><td colspan="7" class="empty-cell">No deployment escalations logged yet.</td></tr>'
           : escalations.map(e => `
             <tr class="clickable-row" onclick="openEscalationDetail('${e.id}')">
               <td>${e.date || '—'}</td>
-              <td>${e.org}</td>
-              <td><span class="tag">${e.type}</span></td>
-              <td><span class="outcome ${e.outcome.toLowerCase().replace(/ /g,'-')}">${e.outcome}</span></td>
+              <td><strong>${getDeploymentName(e.implementation_id)}</strong></td>
+              <td><span class="tag">${e.type}${e.other_desc ? ': ' + e.other_desc : ''}</span></td>
+              <td><span class="outcome ${e.outcome.toLowerCase().replace(/ /g, '-')}">${e.outcome}</span></td>
               <td>${e.days_to_resolve ?? '—'}</td>
               <td class="notes-cell">${e.notes || '—'}</td>
               <td><button class="icon-btn" onclick="event.stopPropagation();removeEscalation('${e.id}')">🗑</button></td>
             </tr>`).join('')}
       </tbody>
-    </table>
+    </table>`}
+
+  `;
+}
+
+// ── Add / Edit modal ──────────────────────────────────────────────────────────
+
+function buildEscModalHtml(esc, prefilledImplId) {
+  const e = esc || {};
+  const implId = e.implementation_id || prefilledImplId || '';
+  return `
     <div id="esc-modal" class="modal hidden">
       <div class="modal-box">
-        <h3>Log Escalation</h3>
-        <div class="autocomplete-wrap">
-          <input id="esc-org" placeholder="Organisation" class="input-field" autocomplete="off" oninput="filterOrgSuggestions()" onkeydown="orgKeydown(event)" />
-          <div id="org-suggestions" class="autocomplete-list hidden"></div>
-        </div>
-        <input id="esc-date" type="date" class="input-field" />
-        <select id="esc-type" class="input-field" onchange="toggleOtherField()">
-          ${ESCALATION_TYPES.map(t => `<option>${t}</option>`).join('')}
+        <h3>${esc ? 'Edit Deployment Escalation' : 'Log Deployment Escalation'}</h3>
+        <input id="esc-editing-id" type="hidden" value="${e.id || ''}" />
+        <label class="field-label">Deployment <span class="field-required">*</span></label>
+        <select id="esc-impl" class="input-field">${buildDeploymentOptions(implId)}</select>
+        <label class="field-label">Date</label>
+        <input id="esc-date" type="date" class="input-field" value="${e.date || localEscDate()}" />
+        <label class="field-label">Type</label>
+        <select id="esc-type" class="input-field" onchange="toggleEscOtherField()">
+          ${ESCALATION_TYPES.map(t => `<option ${e.type === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
-        <input id="esc-other-desc" placeholder="Describe the issue type…" class="input-field hidden" />
+        <input id="esc-other-desc" placeholder="Describe the issue type…" class="input-field ${e.type === 'Other' ? '' : 'hidden'}" value="${e.other_desc || ''}" />
+        <label class="field-label">Outcome</label>
         <select id="esc-outcome" class="input-field">
-          ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
+          ${ESCALATION_OUTCOMES.map(o => `<option ${(e.outcome || 'Pending') === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
-        <input id="esc-days" placeholder="Days to resolve" type="number" class="input-field" />
-        <textarea id="esc-notes" placeholder="Notes" class="input-field" rows="3"></textarea>
-        <div class="autocomplete-wrap">
-          <input id="esc-related-display" placeholder="Related escalation (optional)" class="input-field" autocomplete="off" onfocus="showRelatedSuggestions()" oninput="filterRelatedSuggestions()" />
-          <input id="esc-related-id" type="hidden" value="" />
-          <div id="related-suggestions" class="autocomplete-list hidden"></div>
-        </div>
+        <label class="field-label">Days to resolve <span class="field-hint">(leave blank if ongoing)</span></label>
+        <input id="esc-days" type="number" min="0" placeholder="e.g. 3" class="input-field" value="${e.days_to_resolve ?? ''}" />
+        <label class="field-label">Notes</label>
+        <textarea id="esc-notes" placeholder="Brief summary of the issue and what was done…" class="input-field" rows="4">${e.notes || ''}</textarea>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="closeEscModal()">Cancel</button>
           <button class="btn-primary" onclick="saveEscalation()">Save</button>
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function filterOrgSuggestions() {
-  const input = document.getElementById('esc-org');
-  const list = document.getElementById('org-suggestions');
-  const val = input.value.trim().toLowerCase();
-  const orgs = getKnownOrgs();
-
-  if (!val) { list.classList.add('hidden'); return; }
-
-  const matches = orgs.filter(o => o.toLowerCase().includes(val));
-  if (matches.length === 0) { list.classList.add('hidden'); return; }
-
-  list.innerHTML = matches.map((o, i) =>
-    `<div class="autocomplete-item" data-idx="${i}" onmousedown="selectOrg('${o.replace(/'/g, "\\'")}')">${o}</div>`
-  ).join('');
-  list.classList.remove('hidden');
-}
-
-function selectOrg(org) {
-  document.getElementById('esc-org').value = org;
-  document.getElementById('org-suggestions').classList.add('hidden');
-}
-
-function orgKeydown(e) {
-  const list = document.getElementById('org-suggestions');
-  const items = list.querySelectorAll('.autocomplete-item');
-  const active = list.querySelector('.autocomplete-item.active');
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (!active) items[0]?.classList.add('active');
-    else { active.classList.remove('active'); (active.nextElementSibling || items[0]).classList.add('active'); }
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (!active) items[items.length - 1]?.classList.add('active');
-    else { active.classList.remove('active'); (active.previousElementSibling || items[items.length - 1]).classList.add('active'); }
-  } else if (e.key === 'Enter') {
-    const activeItem = list.querySelector('.autocomplete-item.active');
-    if (activeItem) { e.preventDefault(); selectOrg(activeItem.textContent); }
-  } else if (e.key === 'Escape') {
-    list.classList.add('hidden');
-  }
-}
-
-let _relatedSearchAll = false;
-
-function showRelatedSuggestions() {
-  // Don't reset searchAll flag if already in all-orgs mode (e.g. after clicking Search all)
-  if (!_relatedSearchAll) {
-    const inp = document.getElementById('esc-related-display');
-    if (inp) inp.placeholder = 'Related escalation (optional)';
-  }
-  _relatedSearchAll = _relatedSearchAll || false;
-  filterRelatedSuggestions();
-}
-
-function filterRelatedSuggestions() {
-  const input = document.getElementById('esc-related-display');
-  const list = document.getElementById('related-suggestions');
-  const val = input.value.trim().toLowerCase();
-  const currentOrg = document.getElementById('esc-org').value.trim();
-
-  // Determine pool: current org only, or all orgs
-  let pool = window._escalations;
-  const orgMatches = currentOrg
-    ? pool.filter(e => e.org === currentOrg)
-    : [];
-  const useOrgFilter = !_relatedSearchAll && orgMatches.length > 0;
-  if (useOrgFilter) pool = orgMatches;
-
-  // Filter by typed value if present
-  const matches = (val
-    ? pool.filter(e => `${e.org} ${e.type} ${e.date || ''}`.toLowerCase().includes(val))
-    : pool
-  ).slice(0, 8);
-
-  if (matches.length === 0 || (!useOrgFilter && !val)) { list.classList.add('hidden'); return; }
-
-  const showAllLink = useOrgFilter
-    ? `<div class="autocomplete-item search-all-link" onmousedown="(function(e){e.preventDefault();_relatedSearchAll=true;var inp=document.getElementById('esc-related-display');inp.value='';inp.placeholder='Type to search all organisations…';document.getElementById('related-suggestions').classList.add('hidden');setTimeout(()=>{inp.focus();},50);})(event)">🔍 Search all organisations…</div>`
-    : '';
-
-  if (matches.length === 0) {
-    list.innerHTML = `<div class="autocomplete-item disabled">No escalations found for ${currentOrg}</div>${showAllLink}`;
-    list.classList.remove('hidden');
-    return;
-  }
-
-  list.innerHTML = matches.map(e =>
-    `<div class="autocomplete-item" onmousedown="selectRelated('${e.id}', '${(e.org + ' · ' + e.type + ' · ' + (e.date || '—')).replace(/'/g, "\\'")}')">
-      <span>${e.org} · <span class="tag" style="font-size:0.75rem">${e.type}</span> · ${e.date || '—'}</span>
-      <span style="float:right;font-size:0.75rem;color:var(--muted)">${e.outcome}</span>
-    </div>`
-  ).join('') + showAllLink;
-  list.classList.remove('hidden');
-}
-
-function selectRelated(id, label) {
-  document.getElementById('esc-related-display').value = label;
-  document.getElementById('esc-related-id').value = id;
-  document.getElementById('related-suggestions').classList.add('hidden');
-}
-
-function toggleOtherField() {
-  const type = document.getElementById('esc-type').value;
-  const field = document.getElementById('esc-other-desc');
-  if (type === 'Other') {
-    field.classList.remove('hidden');
-    field.focus();
-  } else {
-    field.classList.add('hidden');
-    field.value = '';
-  }
-}
-
-function showAddEscModal() {
-  _relatedSearchAll = false;
-  ['esc-org', 'esc-date', 'esc-days', 'esc-notes', 'esc-other-desc', 'esc-related-display'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('esc-related-id').value = '';
-  document.getElementById('esc-other-desc').classList.add('hidden');
-  document.getElementById('org-suggestions')?.classList.add('hidden');
-  document.getElementById('related-suggestions')?.classList.add('hidden');
+function injectEscModal(html) {
+  const existing = document.getElementById('esc-modal');
+  if (existing) existing.remove();
+  document.getElementById('escalations-content').insertAdjacentHTML('beforeend', html);
+  document.getElementById('esc-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeEscModal();
+  });
   document.getElementById('esc-modal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('esc-org').focus(), 50);
+}
+
+function showAddEscModal(prefilledImplId) {
+  injectEscModal(buildEscModalHtml(null, prefilledImplId));
+}
+
+function showEditEscModal(escOrId) {
+  const esc = typeof escOrId === 'string'
+    ? window._escalations.find(e => e.id === escOrId)
+    : escOrId;
+  if (!esc) return;
+  injectEscModal(buildEscModalHtml(esc, null));
 }
 
 function closeEscModal() {
-  document.getElementById('esc-modal').classList.add('hidden');
-  document.getElementById('org-suggestions')?.classList.add('hidden');
-  document.getElementById('related-suggestions')?.classList.add('hidden');
-  document.getElementById('esc-other-desc').classList.add('hidden');
+  const m = document.getElementById('esc-modal');
+  if (m) m.classList.add('hidden');
+}
+
+function toggleEscOtherField() {
+  const isOther = document.getElementById('esc-type').value === 'Other';
+  document.getElementById('esc-other-desc').classList.toggle('hidden', !isOther);
 }
 
 async function saveEscalation() {
-  const rawType = document.getElementById('esc-type').value;
-  const otherDesc = document.getElementById('esc-other-desc').value.trim();
-  const type = rawType === 'Other' && otherDesc ? `Other: ${otherDesc}` : rawType;
+  const editingId    = document.getElementById('esc-editing-id').value;
+  const implId       = document.getElementById('esc-impl').value;
 
-  const relatedId = document.getElementById('esc-related-id').value.trim() || null;
+  if (!implId) {
+    showToast('Please select a deployment', 'error');
+    return;
+  }
+
+  const type = document.getElementById('esc-type').value;
+  const impl = getDeploymentById(implId);
+
   const data = {
-    org: document.getElementById('esc-org').value.trim(),
-    date: document.getElementById('esc-date').value.trim(),
+    implementation_id: implId,
+    org:               impl ? impl.org : null,
+    date:              document.getElementById('esc-date').value,
     type,
-    outcome: document.getElementById('esc-outcome').value,
-    days_to_resolve: parseInt(document.getElementById('esc-days').value) || null,
-    notes: document.getElementById('esc-notes').value.trim(),
-    related_escalation_id: relatedId,
-    timeline: [{ status: document.getElementById('esc-outcome').value, date: document.getElementById('esc-date').value.trim() || new Date().toISOString().slice(0,10), note: document.getElementById('esc-notes').value.trim() || 'Escalation logged' }]
+    other_desc:        type === 'Other' ? document.getElementById('esc-other-desc').value.trim() : null,
+    outcome:           document.getElementById('esc-outcome').value,
+    days_to_resolve:   document.getElementById('esc-days').value ? parseInt(document.getElementById('esc-days').value) : null,
+    notes:             document.getElementById('esc-notes').value.trim() || null,
   };
-  if (!data.org) { showToast('Organisation is required', 'error'); return; }
-  showToast('Saving…', 'info');
+
   try {
-    await addEscalation(data);
+    if (editingId) {
+      await updateEscalation(editingId, data);
+      showToast('Escalation updated', 'success');
+    } else {
+      await addEscalation(data);
+      showToast('Escalation logged', 'success');
+    }
     closeEscModal();
     await reloadAll();
-    showToast('Escalation logged!', 'success');
-  } catch (e) {
-    showToast('Save failed', 'error');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
   }
 }
 
 async function removeEscalation(id) {
-  if (!confirm('Delete this escalation?')) return;
+  if (!confirm('Delete this escalation? This cannot be undone.')) return;
   try {
     await deleteEscalation(id);
-    _viewingEscalation = null;
+    if (_viewingEscalation === id) _viewingEscalation = null;
+    showToast('Escalation deleted', 'success');
     await reloadAll();
-    showToast('Deleted', 'success');
-  } catch (e) {
-    showToast('Delete failed', 'error');
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, 'error');
   }
 }
 
+// ── Detail view ───────────────────────────────────────────────────────────────
+
 function openEscalationDetail(id) {
   _viewingEscalation = id;
-  renderTab('escalations');
+  renderEscalations(window._escalations);
 }
 
 function renderEscalationDetail(esc) {
+  const impl     = getDeploymentById(esc.implementation_id);
   const timeline = Array.isArray(esc.timeline) ? esc.timeline : [];
-  const timelineHTML = timeline.length === 0
-    ? '<div class="empty-state" style="padding:12px 0">No timeline entries yet.</div>'
-    : timeline.map((entry, i) => `
-        <div class="timeline-entry">
-          <div class="timeline-dot ${entry.status.toLowerCase().replace(/ /g,'-')}"></div>
-          <div class="timeline-body">
-            <div class="timeline-header">
-              <span class="outcome ${entry.status.toLowerCase().replace(/ /g,'-')}">${entry.status}</span>
-              <span class="timeline-date">${entry.date || ''}</span>
-            </div>
-            ${entry.note ? `<div class="timeline-note">${entry.note}</div>` : ''}
-            ${entry.slack_url ? `<a href="${entry.slack_url}" target="_blank" class="timeline-link slack-link">💬 Slack thread</a>` : ''}
-            ${entry.hubspot_url ? `<a href="${entry.hubspot_url}" target="_blank" class="timeline-link hubspot-link">🔗 HubSpot</a>` : ''}
-          </div>
-        </div>`).join('');
 
   document.getElementById('escalations-content').innerHTML = `
-    <div class="toolbar">
-      <button class="btn-secondary" onclick="_viewingEscalation=null;renderTab('escalations')">← Back</button>
-      <button class="btn-primary" onclick="showAddEscModal()">+ Log Escalation</button>
+    <div class="detail-header">
+      <button class="btn-back" onclick="backToEscList()">← Back to deployment escalations</button>
+      <div class="detail-header-actions">
+        <button class="btn-secondary" onclick="showEditEscModal('${esc.id}')">Edit</button>
+        <button class="btn-danger" onclick="removeEscalation('${esc.id}')">Delete</button>
+      </div>
     </div>
 
-    <div class="detail-card">
-      <div class="detail-header">
-        <div>
-          <div class="detail-org">${esc.org}</div>
-          <div class="detail-meta">${esc.date || ''} &nbsp;·&nbsp; <span class="tag">${esc.type}</span></div>
+    <div class="detail-main">
+
+      <div class="detail-title-row">
+        <h2 class="detail-title">${impl ? impl.org : esc.org || 'Unknown deployment'}</h2>
+        <span class="tag">${esc.type}${esc.other_desc ? ': ' + esc.other_desc : ''}</span>
+        <span class="outcome ${esc.outcome.toLowerCase().replace(/ /g, '-')}">${esc.outcome}</span>
+      </div>
+
+      <div class="detail-meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">Date</span>
+          <span>${esc.date || '—'}</span>
         </div>
-        <div class="detail-right">
-          <span class="outcome ${esc.outcome.toLowerCase().replace(/ /g,'-')}">${esc.outcome}</span>
-          ${esc.days_to_resolve ? `<span class="detail-days">${esc.days_to_resolve}d to resolve</span>` : ''}
+        <div class="meta-item">
+          <span class="meta-label">Days to resolve</span>
+          <span>${esc.days_to_resolve ?? 'Ongoing'}</span>
+        </div>
+        ${impl ? `
+        <div class="meta-item">
+          <span class="meta-label">Deployment stage</span>
+          <span class="stage-badge">${impl.stage}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">RAG</span>
+          <span class="rag-dot rag-${impl.rag ? impl.rag.toLowerCase() : 'green'}"></span>
+          <span>${impl.rag || '—'}</span>
+        </div>` : ''}
+      </div>
+
+      ${esc.notes ? `
+        <div class="detail-notes">
+          <div class="detail-notes-label">Notes</div>
+          <p>${esc.notes}</p>
+        </div>` : ''}
+
+      ${impl ? `
+        <div class="linked-impl-card">
+          <div class="linked-impl-label">🔗 Linked Deployment</div>
+          <div class="linked-impl-name">${impl.org}</div>
+          <div class="linked-impl-meta">Stage: ${impl.stage} · RAG: ${impl.rag || '—'}</div>
+          <button class="btn-link" onclick="goToDeployment('${impl.id}')">View deployment →</button>
+        </div>` : ''}
+
+      <div class="stage-actions">
+        <div class="stage-actions-label">Change outcome</div>
+        <div class="stage-action-btns">
+          ${ESCALATION_OUTCOMES.filter(o => o !== esc.outcome).map(o =>
+            `<button class="stage-move-btn ${o === 'Resolved by SE' ? 'stage-resolved' : o === 'Pending' ? 'stage-pending' : 'stage-blocked'}"
+              onclick="quickChangeOutcome('${esc.id}', '${o}')">${o}</button>`
+          ).join('')}
         </div>
       </div>
-      ${esc.notes ? `<div class="detail-notes">${esc.notes}</div>` : ''}
-      ${(() => {
-        const related = esc.related_escalation_id
-          ? window._escalations.find(e => e.id === esc.related_escalation_id) : null;
-        const referencedBy = window._escalations.filter(e => e.related_escalation_id === esc.id);
-        const lines = [];
-        if (related) lines.push(`<div class="detail-related">🔗 Related to: <span class="related-link" onclick="openEscalationDetail('${related.id}')">${related.org} · ${related.type} · ${related.date || '—'} →</span></div>`);
-        referencedBy.forEach(r => lines.push(`<div class="detail-related">↩ Referenced by: <span class="related-link" onclick="openEscalationDetail('${r.id}')">${r.org} · ${r.type} · ${r.date || '—'} →</span></div>`));
-        return lines.join('');
-      })()}
-    </div>
 
-    <div class="section-title" style="margin-top:24px">Case Timeline</div>
-    <div class="timeline-track">${timelineHTML}</div>
-
-    <div class="add-timeline-box">
-      <h4 style="margin:0 0 12px">Add Timeline Entry</h4>
-      <select id="tl-status" class="input-field">
-        ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
-      </select>
-      <input id="tl-date" type="date" class="input-field" value="${new Date().toISOString().slice(0,10)}" />
-      <textarea id="tl-note" placeholder="What happened? What did we learn?" class="input-field" rows="3"></textarea>
-      <input id="tl-slack" placeholder="Slack URL (optional)" class="input-field" />
-      <input id="tl-hubspot" placeholder="HubSpot URL (optional)" class="input-field" />
-      <button class="btn-primary" style="margin-top:8px" onclick="addTimelineEntry('${esc.id}')">Add Entry</button>
-    </div>
-
-    <div id="esc-modal" class="modal hidden">
-      <div class="modal-box">
-        <h3>Log Escalation</h3>
-        <div class="autocomplete-wrap">
-          <input id="esc-org" placeholder="Organisation" class="input-field" autocomplete="off" oninput="filterOrgSuggestions()" onkeydown="orgKeydown(event)" />
-          <div id="org-suggestions" class="autocomplete-list hidden"></div>
+      <div class="timeline-section">
+        <div class="timeline-header">
+          <h3>Case Timeline</h3>
+          <button class="btn-secondary btn-sm" onclick="showAddTimelineEntry('${esc.id}')">+ Add entry</button>
         </div>
-        <input id="esc-date" type="date" class="input-field" />
-        <select id="esc-type" class="input-field" onchange="toggleOtherField()">
-          ${ESCALATION_TYPES.map(t => `<option>${t}</option>`).join('')}
-        </select>
-        <input id="esc-other-desc" placeholder="Describe the issue type…" class="input-field hidden" />
-        <select id="esc-outcome" class="input-field">
+        <div id="timeline-list">
+          ${timeline.length === 0
+            ? '<p class="empty-msg">No timeline entries yet. Add one to start building the case history.</p>'
+            : [...timeline].reverse().map((entry, i) => `
+              <div class="timeline-entry">
+                <div class="timeline-entry-header">
+                  <span class="timeline-date">${entry.date || '—'}</span>
+                  ${entry.outcome_change
+                    ? `<span class="outcome ${entry.outcome_change.toLowerCase().replace(/ /g, '-')}">${entry.outcome_change}</span>`
+                    : ''}
+                  <button class="icon-btn" style="margin-left:auto" onclick="deleteTimelineEntry('${esc.id}', ${timeline.length - 1 - i})">🗑</button>
+                </div>
+                <p class="timeline-note">${entry.note}</p>
+                <div class="timeline-links">
+                  ${entry.slack_url   ? `<a href="${entry.slack_url}"   target="_blank" class="timeline-link">📎 Slack thread</a>` : ''}
+                  ${entry.hubspot_url ? `<a href="${entry.hubspot_url}" target="_blank" class="timeline-link">🔗 HubSpot</a>` : ''}
+                </div>
+              </div>`).join('')}
+        </div>
+      </div>
+
+    </div>
+
+    <div id="timeline-modal" class="modal hidden">
+      <div class="modal-box">
+        <h3>Add Timeline Entry</h3>
+
+        <label class="field-label">Date</label>
+        <input id="tl-date" type="date" class="input-field" value="${localEscDate()}" />
+
+        <label class="field-label">What happened / what was done?</label>
+        <textarea id="tl-note" placeholder="Describe what was investigated, found, sent to engineering, or resolved…" class="input-field" rows="4"></textarea>
+
+        <label class="field-label">Update outcome <span class="field-hint">(optional — leave blank to keep current)</span></label>
+        <select id="tl-outcome" class="input-field">
+          <option value="">— No change —</option>
           ${ESCALATION_OUTCOMES.map(o => `<option>${o}</option>`).join('')}
         </select>
-        <input id="esc-days" placeholder="Days to resolve" type="number" class="input-field" />
-        <textarea id="esc-notes" placeholder="Notes" class="input-field" rows="3"></textarea>
-        <div class="autocomplete-wrap">
-          <input id="esc-related-display" placeholder="Related escalation (optional)" class="input-field" autocomplete="off" onfocus="showRelatedSuggestions()" oninput="filterRelatedSuggestions()" />
-          <input id="esc-related-id" type="hidden" value="" />
-          <div id="related-suggestions" class="autocomplete-list hidden"></div>
-        </div>
+
+        <label class="field-label">Slack thread URL <span class="field-hint">(optional)</span></label>
+        <input id="tl-slack" placeholder="https://hubstaff.slack.com/..." class="input-field" />
+
+        <label class="field-label">HubSpot URL <span class="field-hint">(optional)</span></label>
+        <input id="tl-hubspot" placeholder="https://app.hubspot.com/..." class="input-field" />
+
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="closeEscModal()">Cancel</button>
-          <button class="btn-primary" onclick="saveEscalation()">Save</button>
+          <button class="btn-secondary" onclick="closeTimelineModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveTimelineEntry('${esc.id}')">Add Entry</button>
         </div>
       </div>
     </div>
   `;
+
+  document.getElementById('timeline-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeTimelineModal();
+  });
 }
 
-async function addTimelineEntry(escId) {
-  const status = document.getElementById('tl-status').value;
-  const date = document.getElementById('tl-date').value.trim();
+function backToEscList() {
+  _viewingEscalation = null;
+  renderEscalations(window._escalations);
+}
+
+function goToDeployment(implId) {
+  _viewingImpl = implId;
+  switchTab('deployments');
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
+
+function showAddTimelineEntry() {
+  document.getElementById('tl-date').value = localEscDate();
+  document.getElementById('tl-note').value = '';
+  document.getElementById('tl-outcome').value = '';
+  document.getElementById('tl-slack').value = '';
+  document.getElementById('tl-hubspot').value = '';
+  document.getElementById('timeline-modal').classList.remove('hidden');
+}
+
+function closeTimelineModal() {
+  document.getElementById('timeline-modal').classList.add('hidden');
+}
+
+async function saveTimelineEntry(escId) {
   const note = document.getElementById('tl-note').value.trim();
-  const slack_url = document.getElementById('tl-slack').value.trim();
-  const hubspot_url = document.getElementById('tl-hubspot').value.trim();
-  if (!note) { showToast('Please add a note for this entry', 'error'); return; }
+  if (!note) { showToast('Please add a note', 'error'); return; }
 
   const esc = window._escalations.find(e => e.id === escId);
   if (!esc) return;
 
-  const timeline = Array.isArray(esc.timeline) ? [...esc.timeline] : [];
-  const entry = { status, date: date || new Date().toISOString().slice(0,10), note };
-  if (slack_url) entry.slack_url = slack_url;
-  if (hubspot_url) entry.hubspot_url = hubspot_url;
-  timeline.push(entry);
+  const entry = {
+    date:           document.getElementById('tl-date').value,
+    note,
+    outcome_change: document.getElementById('tl-outcome').value || null,
+    slack_url:      document.getElementById('tl-slack').value.trim() || null,
+    hubspot_url:    document.getElementById('tl-hubspot').value.trim() || null,
+  };
 
-  // Latest status becomes the escalation's outcome
-  const update = { timeline, outcome: status };
-  showToast('Saving…', 'info');
+  const timeline = Array.isArray(esc.timeline) ? [...esc.timeline, entry] : [entry];
+  const updates  = { timeline };
+  if (entry.outcome_change) updates.outcome = entry.outcome_change;
+
   try {
-    await updateEscalation(escId, update);
+    await updateEscalation(escId, updates);
+    closeTimelineModal();
+    showToast('Timeline entry added', 'success');
     await reloadAll();
-    showToast('Entry added!', 'success');
-  } catch (e) {
-    showToast('Save failed', 'error');
+    _viewingEscalation = escId;
+    renderEscalations(window._escalations); // re-renders detail view with updated outcome
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
   }
 }
 
-// Close any open autocomplete dropdown when clicking outside
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.autocomplete-wrap') && !e.target.closest('.autocomplete-list')) {
-    document.querySelectorAll('.autocomplete-list').forEach(el => el.classList.add('hidden'));
+async function deleteTimelineEntry(escId, index) {
+  if (!confirm('Delete this timeline entry?')) return;
+  const esc = window._escalations.find(e => e.id === escId);
+  if (!esc) return;
+  const timeline = [...(esc.timeline || [])];
+  timeline.splice(index, 1);
+  try {
+    await updateEscalation(escId, { timeline });
+    showToast('Entry deleted', 'success');
+    await reloadAll();
+    _viewingEscalation = escId;
+    renderEscalations(window._escalations);
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
   }
-});
+}
+
+// ── Quick outcome change ─────────────────────────────────────────────────────
+
+async function quickChangeOutcome(escId, newOutcome) {
+  try {
+    await updateEscalation(escId, { outcome: newOutcome });
+    showToast('Outcome updated to ' + newOutcome, 'success');
+    await reloadAll();
+    _viewingEscalation = escId;
+    renderEscalations(window._escalations);
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  }
+}
+
+// ── Cross-tab helper ──────────────────────────────────────────────────────────
+
+function logEscForDeployment(implId) {
+  switchTab('deployment-escalations');
+  setTimeout(() => showAddEscModal(implId), 150);
+}

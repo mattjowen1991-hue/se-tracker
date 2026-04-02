@@ -2,34 +2,25 @@
 
 async function dbRequest(path, method = 'GET', body = null, params = '') {
   const url = `${SUPABASE_URL}/rest/v1/${path}${params}`;
+  const prefer = method === 'POST' ? 'return=representation'
+               : method === 'PATCH' ? 'return=representation'
+               : 'return=minimal';
   const headers = {
     'apikey': SUPABASE_ANON_KEY,
     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     'Content-Type': 'application/json',
-    'Prefer': method === 'POST' ? 'return=representation' : 'return=minimal'
+    'Prefer': prefer
   };
   const options = { method, headers };
   if (body) options.body = JSON.stringify(body);
   const res = await fetch(url, options);
-  if (!res.ok) throw new Error(`DB error: ${res.status}`);
+  if (!res.ok) throw new Error(`DB error ${res.status}: ${await res.text()}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
-// Weekly metrics
-async function getWeeklyMetrics() {
-  return dbRequest('weekly_metrics', 'GET', null, '?order=week_index.asc');
-}
+// ── Implementations ───────────────────────────────────────────────────────────
 
-async function upsertWeeklyMetric(data) {
-  return dbRequest('weekly_metrics', 'POST', data, '');
-}
-
-async function updateWeeklyMetric(id, data) {
-  return dbRequest(`weekly_metrics?id=eq.${id}`, 'PATCH', data);
-}
-
-// Implementations
 async function getImplementations() {
   return dbRequest('implementations', 'GET', null, '?order=created_at.desc');
 }
@@ -46,7 +37,8 @@ async function deleteImplementation(id) {
   return dbRequest(`implementations?id=eq.${id}`, 'DELETE');
 }
 
-// Escalations
+// ── Deployment Escalations ────────────────────────────────────────────────────
+
 async function getEscalations() {
   return dbRequest('escalations', 'GET', null, '?order=created_at.desc');
 }
@@ -63,26 +55,28 @@ async function deleteEscalation(id) {
   return dbRequest(`escalations?id=eq.${id}`, 'DELETE');
 }
 
-// Calls
-async function getCalls() {
-  return dbRequest('calls', 'GET', null, '?order=date.desc');
+// ── SE Escalations ────────────────────────────────────────────────────────────
+
+async function getSeEscalations() {
+  return dbRequest('se_escalations', 'GET', null, '?order=created_at.desc');
 }
 
-async function addCall(data) {
-  return dbRequest('calls', 'POST', data);
+async function addSeEscalation(data) {
+  return dbRequest('se_escalations', 'POST', data);
 }
 
-async function updateCall(id, data) {
-  return dbRequest(`calls?id=eq.${id}`, 'PATCH', data);
+async function updateSeEscalation(id, data) {
+  return dbRequest(`se_escalations?id=eq.${id}`, 'PATCH', data);
 }
 
-async function deleteCall(id) {
-  return dbRequest(`calls?id=eq.${id}`, 'DELETE');
+async function deleteSeEscalation(id) {
+  return dbRequest(`se_escalations?id=eq.${id}`, 'DELETE');
 }
 
-// Docs
+// ── Docs ──────────────────────────────────────────────────────────────────────
+
 async function getDocs() {
-  return dbRequest('docs', 'GET', null, '?order=date.desc');
+  return dbRequest('docs', 'GET', null, '?order=created_at.desc');
 }
 
 async function addDoc(data) {

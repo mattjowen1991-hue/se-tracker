@@ -18,12 +18,13 @@ const DEFAULT_CHECKLISTS = {
     { id: 'pd6',  text: 'Create automatic tracking policy in Hubstaff' },
     { id: 'pd7',  text: '"Automatically add new members to this policy" toggled ON' },
     { id: 'pd8',  text: 'Set as default auto-add policy for the organisation' },
-    { id: 'pd9',  text: 'Distribute .mobileconfig to devices (macOS + MDM only)' },
+    { id: 'pd9',  text: 'Distribute .mobileconfig to devices (macOS only — required for all macOS deployments)' },
     { id: 'pd10', text: 'Confirm customer has admin access to their MDM tool' },
     { id: 'pd11', text: 'Agree on pilot group (1-2 machines) before full rollout' },
   ],
   'Deployment': [
     { id: 'dp1', text: 'Download correct installer for OS (.pkg / .msi / .sh)' },
+    { id: 'dp1b', text: 'macOS/Linux: do NOT rename the installer — wrap it if a custom name is needed for MDM' },
     { id: 'dp2', text: 'Deploy to pilot group (1-2 machines)' },
     { id: 'dp3', text: 'Confirm members auto-provisioned in Hubstaff after pilot' },
     { id: 'dp4', text: 'Expand to larger pilot group (3-4 machines)' },
@@ -41,7 +42,7 @@ const DEFAULT_CHECKLISTS = {
   'Stability': [
     { id: 'st1', text: 'Customer confirmed all devices reporting consistently' },
     { id: 'st2', text: 'No duplicate member issues outstanding' },
-    { id: 'st3', text: 'CSAT score collected from customer' },
+    { id: 'st3b', text: 'SCIM/UPN matching confirmed if SCIM is active (Windows only — macOS/Linux support planned)' },
     { id: 'st4', text: 'Implementation notes documented and closed' },
   ]
 };
@@ -81,9 +82,9 @@ function renderSilentApp(implementations) {
         '<div class="view-toggle">' +
           '<button class="view-btn ' + (!_showArchived && _viewMode==='kanban'?'active':'') + '" onclick="setShowArchived(false);setViewMode(\'kanban\')">&#9646; Kanban</button>' +
           '<button class="view-btn ' + (!_showArchived && _viewMode==='table' ?'active':'') + '" onclick="setShowArchived(false);setViewMode(\'table\')">&#9776; Table</button>' +
-          '<button class="view-btn ' + (_showArchived?'active':'') + '" onclick="setShowArchived(true)">🗄 Archived (' + archived.length + ')</button>' +
+          '<button class="view-btn ' + (_showArchived?'active':'') + '" onclick="_showArchived?setShowArchived(false):setShowArchived(true)">&#128452; Archived (' + archived.length + ')</button>' +
         '</div>' +
-        (!_showArchived ? '<button class="btn-primary" onclick="showAddImplModal()">+ Add Implementation</button>' : '') +
+        '<button class="btn-primary" onclick="showAddImplModal()" style="' + (_showArchived ? 'visibility:hidden' : '') + '">+ Add Implementation</button>' +
       '</div>' +
     '</div>' +
     (_showArchived
@@ -124,7 +125,24 @@ function renderImplModal(impl) {
         '<input id="impl-contact-name" placeholder="Contact name" class="input-field" value="' + (impl ? impl.contact_name || '' : '') + '" />' +
         '<input id="impl-contact-email" placeholder="Contact email" class="input-field" value="' + (impl ? impl.contact_email || '' : '') + '" />' +
         '<input id="impl-org-size" placeholder="Number of devices" type="number" class="input-field" value="' + (impl ? impl.org_size || '' : '') + '" />' +
-        '<input id="impl-mdm" placeholder="MDM tool (e.g. Intune, Jamf, None)" class="input-field" value="' + (impl ? impl.mdm_type || '' : '') + '" />' +
+        '<input id="impl-mdm" placeholder="MDM tool (e.g. Intune, Jamf, GPO, None)" class="input-field" value="' + (impl ? impl.mdm_type || '' : '') + '" />' +
+        '<select id="impl-deployment-method" class="input-field">' +
+          '<option value="">Deployment method...</option>' +
+          ['MDM (Intune)', 'MDM (Jamf)', 'MDM (GPO)', 'MDM (Other)', 'Script', 'Individual / Manual', 'AnyDesk / Remote'].map(function(m) {
+            return '<option value="' + m + '"' + (impl && impl.deployment_method === m ? ' selected' : '') + '>' + m + '</option>';
+          }).join('') +
+        '</select>' +
+        '<select id="impl-plan" class="input-field">' +
+          '<option value="">Plan tier...</option>' +
+          ['Enterprise', 'Teams + Silent App add-on', 'Starter'].map(function(p) {
+            return '<option value="' + p + '"' + (impl && impl.plan === p ? ' selected' : '') + '>' + p + '</option>';
+          }).join('') +
+        '</select>' +
+        '<input id="impl-app-version" placeholder="App version (e.g. 1.7.10)" class="input-field" value="' + (impl ? impl.app_version || '' : '') + '" />' +
+        '<label class="os-check" style="margin-top:8px">' +
+          '<input type="checkbox" id="impl-large-deployment" ' + (impl && impl.large_deployment ? 'checked' : '') + ' />' +
+          ' 50+ users — involve Lucas Mocellin' +
+        '</label>' +
         '<div style="grid-column:1/-1"><label class="field-label">Operating Systems</label>' +
           '<div class="os-checkboxes">' +
             ['Windows','macOS','Linux'].map(function(o) {
@@ -145,7 +163,6 @@ function renderImplModal(impl) {
           '<option value="Amber"' + (impl && impl.rag==='Amber'?' selected':'') + '>Amber - Needs Attention</option>' +
           '<option value="Red"'   + (impl && impl.rag==='Red'  ?' selected':'') + '>Red - At Risk</option>' +
         '</select>' +
-        '<input id="impl-csat" placeholder="CSAT score (1-10, optional)" type="number" min="1" max="10" class="input-field" value="' + (impl ? impl.csat || '' : '') + '" />' +
         '<input id="impl-hubspot-url" placeholder="HubSpot URL (optional)" class="input-field" value="' + (impl ? impl.hubspot_url || '' : '') + '" />' +
         '<input id="impl-slack-url" placeholder="Slack URL (optional)" class="input-field" value="' + (impl ? impl.slack_url || '' : '') + '" />' +
         '<textarea id="impl-notes" placeholder="Notes" class="input-field" rows="3" style="grid-column:1/-1">' + (impl ? impl.notes || '' : '') + '</textarea>' +
@@ -198,8 +215,9 @@ function renderKanbanCard(impl) {
       '<div class="kanban-card-org">' + impl.org + '</div>' +
       '<div class="rag-dot" style="background:' + ragColour + '" title="' + impl.rag + '"></div>' +
     '</div>' +
-    '<div class="kanban-card-meta">' + (impl.contact_name || '') + (impl.org_size ? ' &nbsp;·&nbsp; ' + impl.org_size + ' devices' : '') + '</div>' +
-    (os ? '<div class="kanban-card-meta">' + os + (impl.mdm_type ? ' &nbsp;·&nbsp; ' + impl.mdm_type : '') + '</div>' : '') +
+    '<div class="kanban-card-meta">' + (impl.contact_name || '') + (impl.org_size ? ' &nbsp;·&nbsp; ' + impl.org_size + ' devices' : '') + (impl.large_deployment ? ' &nbsp;<span style="color:var(--amber);font-size:10px;font-weight:600">50+</span>' : '') + '</div>' +
+    (os ? '<div class="kanban-card-meta">' + os + (impl.mdm_type ? ' &nbsp;·&nbsp; ' + impl.mdm_type : '') + (impl.deployment_method ? ' (' + impl.deployment_method + ')' : '') + '</div>' : '') +
+    ((impl.plan || impl.app_version) ? '<div class="kanban-card-meta" style="color:var(--muted)">' + (impl.plan || '') + (impl.plan && impl.app_version ? ' &nbsp;·&nbsp; ' : '') + (impl.app_version ? 'v' + impl.app_version : '') + '</div>' : '') +
     '<div class="checklist-progress">' +
       '<div class="progress-bar-track">' +
         '<div class="progress-bar-fill" style="width:' + pct + '%;background:' + fillColour + '"></div>' +
@@ -318,8 +336,7 @@ function renderImplDetail(impl, allImpls) {
   var os             = Array.isArray(impl.os) ? impl.os : (impl.os ? [impl.os] : []);
   var ragColour      = { Green: 'var(--green)', Amber: 'var(--amber)', Red: 'var(--red)' }[impl.rag] || 'var(--muted)';
   var ragEmoji       = impl.rag === 'Green' ? '🟢' : impl.rag === 'Amber' ? '🟡' : '🔴';
-  var linkedIds      = Array.isArray(impl.linked_escalation_ids) ? impl.linked_escalation_ids : [];
-  var linkedEscs     = (window._escalations || []).filter(function(e) { return linkedIds.includes(e.id); });
+  var linkedEscs     = (window._escalations || []).filter(function(e) { return e.implementation_id === impl.id; });
   var stageEnteredAt = impl.stage_entered_at || {};
   var stageIdx       = STAGES.indexOf(impl.stage);
 
@@ -363,13 +380,19 @@ function renderImplDetail(impl, allImpls) {
 
   // Linked escalations
   var linkedHtml = '<div class="checklist-card">' +
-    '<div class="checklist-header"><span class="checklist-stage-title">Linked Escalations</span><span class="checklist-count">' + linkedEscs.length + '</span></div>' +
+    '<div class="checklist-header">' +
+      '<span class="checklist-stage-title">Deployment Escalations</span>' +
+      '<span class="checklist-count">' + linkedEscs.length + '</span>' +
+      '<button class="btn-secondary btn-sm" onclick="logEscForDeployment(\'' + impl.id + '\')">+ Log Escalation</button>' +
+    '</div>' +
     (linkedEscs.length === 0
-      ? '<div class="checklist-empty">No escalations linked yet</div>'
+      ? '<div class="checklist-empty">No escalations logged for this deployment yet.</div>'
       : linkedEscs.map(function(e) {
-          return '<div class="linked-esc" onclick="(function(){_viewingImpl=null;switchTab(\'escalations\');setTimeout(function(){openEscalationDetail(\'' + e.id + '\')},200)})()">' +
-            e.org + ' &nbsp;·&nbsp; <span class="tag" style="font-size:0.75rem">' + e.type + '</span> &nbsp;·&nbsp; ' + (e.date||'&mdash;') +
-            '<span style="float:right;color:var(--muted);font-size:0.75rem">' + e.outcome + '</span>' +
+          var outcomeClass = e.outcome.toLowerCase().replace(/ /g, '-');
+          return '<div class="linked-esc" onclick="(function(){_viewingImpl=null;switchTab(\'deployment-escalations\');setTimeout(function(){openEscalationDetail(\'' + e.id + '\')},200)})()">' +
+            '<span class="tag" style="font-size:0.75rem">' + e.type + (e.other_desc ? ': ' + e.other_desc : '') + '</span>' +
+            ' &nbsp;&middot;&nbsp; ' + (e.date || '&mdash;') +
+            '<span class="outcome ' + outcomeClass + '" style="float:right;font-size:0.75rem">' + e.outcome + '</span>' +
           '</div>';
         }).join('')) +
   '</div>';
@@ -406,10 +429,17 @@ function renderImplDetail(impl, allImpls) {
             '<div class="detail-meta">' + (impl.contact_name||'') + (impl.contact_email?' &nbsp;·&nbsp; <a href="mailto:'+impl.contact_email+'" style="color:var(--blue)">'+impl.contact_email+'</a>':'') + '</div>' +
             '<div class="detail-meta" style="margin-top:4px">' +
               (impl.org_size ? impl.org_size + ' devices' : '') +
+              (impl.large_deployment ? ' &nbsp;<span style="background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600">50+ — Involve Lucas</span>' : '') +
               (os.length ? ' &nbsp;·&nbsp; ' + os.join(', ') : '') +
               (impl.deployment_method ? ' &nbsp;·&nbsp; ' + impl.deployment_method : '') +
               (impl.mdm_type ? ' &nbsp;·&nbsp; MDM: ' + impl.mdm_type : '') +
+              (impl.deployment_method ? ' &nbsp;·&nbsp; ' + impl.deployment_method : '') +
             '</div>' +
+            ((impl.plan || impl.app_version) ? '<div class="detail-meta" style="margin-top:4px;color:var(--muted)">' +
+              (impl.plan ? impl.plan : '') +
+              (impl.plan && impl.app_version ? ' &nbsp;·&nbsp; ' : '') +
+              (impl.app_version ? 'v' + impl.app_version : '') +
+            '</div>' : '') +
             ((impl.hubspot_url || impl.slack_url) ? '<div class="detail-meta" style="margin-top:6px">' +
               (impl.hubspot_url ? '<a href="' + impl.hubspot_url + '" target="_blank" class="activity-link">🔗 HubSpot</a>' : '') +
               (impl.hubspot_url && impl.slack_url ? ' &nbsp;' : '') +
@@ -418,7 +448,6 @@ function renderImplDetail(impl, allImpls) {
           '</div>' +
           '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">' +
             '<span class="rag-badge-lg" style="background:' + ragColour + '22;color:' + ragColour + ';border:1px solid ' + ragColour + '66">' + ragEmoji + ' ' + impl.rag + '</span>' +
-            (impl.csat ? '<span class="csat-badge">CSAT ' + impl.csat + '/10</span>' : '') +
             '<button class="btn-secondary btn-sm" onclick="editImpl(\'' + impl.id + '\')">Edit</button>' +
             (impl.stage === 'Stability' ? '<button class="btn-archive btn-sm" onclick="archiveImpl(\'' + impl.id + '\')">🗄 Archive</button>' : '') +
             (impl.stage === 'Archived'  ? '<button class="btn-secondary btn-sm" onclick="unarchiveImpl(\'' + impl.id + '\')">↩ Unarchive</button>' : '') +
@@ -604,11 +633,14 @@ function setViewMode(mode) {
 function showAddImplModal() {
   document.getElementById('impl-modal-title').textContent = 'Add Implementation';
   document.getElementById('impl-edit-id').value = '';
-  ['impl-org','impl-contact-name','impl-contact-email','impl-org-size','impl-mdm','impl-notes','impl-csat','impl-hubspot-url','impl-slack-url'].forEach(function(id){
+  ['impl-org','impl-contact-name','impl-contact-email','impl-org-size','impl-mdm','impl-app-version','impl-notes','impl-hubspot-url','impl-slack-url'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   document.querySelectorAll('.impl-os-cb').forEach(function(cb){ cb.checked = false; });
   document.getElementById('impl-stage').value = STAGES[0];
+  document.getElementById('impl-deployment-method').value = '';
+  document.getElementById('impl-plan').value = '';
+  document.getElementById('impl-large-deployment').checked = false;
   document.getElementById('impl-rag').value = 'Green';
   document.getElementById('impl-deploy-method').value = '';
   document.getElementById('impl-modal').classList.remove('hidden');
@@ -627,11 +659,14 @@ function editImpl(id) {
   document.getElementById('impl-contact-name').value  = impl.contact_name || '';
   document.getElementById('impl-contact-email').value = impl.contact_email || '';
   document.getElementById('impl-org-size').value   = impl.org_size || '';
-  document.getElementById('impl-mdm').value         = impl.mdm_type || '';
+  document.getElementById('impl-mdm').value              = impl.mdm_type || '';
+  document.getElementById('impl-deployment-method').value   = impl.deployment_method || '';
+  document.getElementById('impl-plan').value                 = impl.plan || '';
+  document.getElementById('impl-app-version').value          = impl.app_version || '';
+  document.getElementById('impl-large-deployment').checked   = impl.large_deployment === true;
   document.getElementById('impl-deploy-method').value = impl.deployment_method || '';
   document.getElementById('impl-stage').value      = impl.stage || STAGES[0];
   document.getElementById('impl-rag').value         = impl.rag || 'Green';
-  document.getElementById('impl-csat').value        = impl.csat || '';
   document.getElementById('impl-hubspot-url').value = impl.hubspot_url || '';
   document.getElementById('impl-slack-url').value   = impl.slack_url || '';
   document.getElementById('impl-notes').value       = impl.notes || '';
@@ -652,7 +687,6 @@ async function saveImpl() {
     deployment_method: document.getElementById('impl-deploy-method').value,
     stage:             document.getElementById('impl-stage').value,
     rag:               document.getElementById('impl-rag').value,
-    csat:              parseInt(document.getElementById('impl-csat').value) || null,
     hubspot_url:       document.getElementById('impl-hubspot-url').value.trim() || null,
     slack_url:         document.getElementById('impl-slack-url').value.trim() || null,
     notes:             document.getElementById('impl-notes').value.trim(),

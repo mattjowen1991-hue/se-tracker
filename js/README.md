@@ -64,7 +64,9 @@ function renderTrends(weeklyMetrics, implementations) {
   thisMon.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
   thisMon.setHours(0,0,0,0);
 
-  // week_index is DESCENDING: 1 = current week, 2 = last week, etc.
+  // week_index is ascending: 1 = oldest week, maxIdx = current week
+  const maxIdx = Math.max(...weeklyMetrics.map(w => w.week_index || 1), 1);
+
   // Normalise any date value to YYYY-MM-DD using LOCAL date parts, not UTC
   // This prevents timezone shifts (e.g. 2026-01-26T00:30Z reading as Jan 25 locally)
   function toDateStr(val) {
@@ -77,8 +79,7 @@ function renderTrends(weeklyMetrics, implementations) {
   }
 
   function weekBounds(wIdx) {
-    // wIdx=1 is current week, wIdx=2 is last week, etc.
-    const weeksAgo = wIdx - 1;
+    const weeksAgo = maxIdx - wIdx;
     const mon = new Date(thisMon);
     mon.setDate(thisMon.getDate() - weeksAgo * 7);
     const sun = new Date(mon);
@@ -89,23 +90,17 @@ function renderTrends(weeklyMetrics, implementations) {
     return { start: fmt(mon), end: fmt(sun) };
   }
 
-  // Derive week number from label ("W1"->1, "W2"->2). W1=current week (descending).
-  // More reliable than week_index which can be null in Supabase.
-  function weekNum(w) {
-    return parseInt((w.week || 'W1').replace(/[^0-9]/g, '')) || 1;
-  }
-
   const saNewData = weeklyMetrics.map(w => {
-    const { start, end } = weekBounds(weekNum(w));
+    const { start, end } = weekBounds(w.week_index || 1);
     return impls.filter(i => {
-      const d = i.created_date || toDateStr(i.created_at);
+      const d = toDateStr(i.created_at);
       if (!d) return false;
       return d >= start && d <= end;
     }).length;
   });
 
   const saStableData = weeklyMetrics.map(w => {
-    const { start, end } = weekBounds(weekNum(w));
+    const { start, end } = weekBounds(w.week_index || 1);
     return impls.filter(i => {
       const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       if (!entered) return false;
@@ -121,7 +116,7 @@ function renderTrends(weeklyMetrics, implementations) {
   let avgDaysData = [];
   if (weeks.length > 0) {
     avgDaysData = weeklyMetrics.map(w => {
-      const { end } = weekBounds(weekNum(w));
+      const { end } = weekBounds(w.week_index || 1);
       const done = completed.filter(i => {
         const stab = toDateStr((i.stage_entered_at || {})['Stability']);
         return stab && stab <= end;
@@ -142,14 +137,14 @@ function renderTrends(weeklyMetrics, implementations) {
   const totalActive = impls.length;
 
   _drillData = {
-    'chart-esc':       { type: 'weekly-escalations', weeks: weeklyMetrics, weekBounds, weekNum },
+    'chart-esc':       { type: 'weekly-escalations', weeks: weeklyMetrics, weekBounds },
     'chart-calls':     { type: 'weekly-calls',        weeks: weeklyMetrics },
     'chart-csat':      { type: 'weekly-csat',          weeks: weeklyMetrics },
     'chart-docs':      { type: 'weekly-docs',          weeks: weeklyMetrics },
     'chart-sa-stage':  { type: 'sa-stage',  stageKeys, stageLabels, impls },
-    'chart-sa-new':    { type: 'sa-new',    weeks: weeklyMetrics, impls, weekBounds, weekNum },
-    'chart-sa-stable': { type: 'sa-stable', weeks: weeklyMetrics, impls, weekBounds, weekNum },
-    'chart-sa-time':   { type: 'sa-time',   weeks: weeklyMetrics, completed, weekBounds, weekNum }
+    'chart-sa-new':    { type: 'sa-new',    weeks: weeklyMetrics, impls, weekBounds },
+    'chart-sa-stable': { type: 'sa-stable', weeks: weeklyMetrics, impls, weekBounds },
+    'chart-sa-time':   { type: 'sa-time',   weeks: weeklyMetrics, completed, weekBounds }
   };
 
   document.getElementById('trends-content').innerHTML = `
@@ -246,10 +241,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'weekly-escalations') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const bounds = (week.week_start && week.week_end)
-      ? { start: week.week_start, end: week.week_end }
-      : d.weekBounds(d.weekNum(week));
-    const { start, end } = bounds;
+    const { start, end } = d.weekBounds(week.week_index || 1);
     const escs = (window._escalations || []).filter(e => { const ed = toDateStr(e.date); return ed && ed >= start && ed <= end; });
     if (!escs.length) return drillEmpty(chartId, label, 'No escalations logged for this week.');
     return `
@@ -277,30 +269,16 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'weekly-calls') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const callsLog = Array.isArray(week.calls_log) ? week.calls_log : [];
-    const escs  = window._escalations     || [];
-    const impls = window._implementations || [];
-    if (!callsLog.length) return drillEmpty(chartId, label, `No calls logged for ${label}. Add them in the Week Log tab.`);
-    const callCards = callsLog.map(c => {
-      const relEsc  = c.esc_id  ? escs.find(e => e.id === c.esc_id)   : null;
-      const relImpl = c.impl_id ? impls.find(i => i.id === c.impl_id) : null;
-      const chips = [];
-      if (relEsc)  chips.push(`<span class="drill-call-chip esc">⚡ ${relEsc.org} · ${relEsc.type}</span>`);
-      if (relImpl) chips.push(`<span class="drill-call-chip impl">🖥 ${relImpl.org_name || relImpl.org} · ${relImpl.stage}</span>`);
-      return `<div class="drill-call-card">
-        <div class="drill-call-org">${c.org || '—'}</div>
-        ${c.notes ? `<div class="drill-call-notes">${c.notes}</div>` : ''}
-        ${chips.length ? `<div class="drill-call-chips">${chips.join('')}</div>` : ''}
-      </div>`;
-    }).join('');
     return `
       <div class="drill-header">
-        <span class="drill-title">&#128222; ${label} &mdash; Calls (${callsLog.length})</span>
-        <button class="drill-close" onclick="closeDrillById('${chartId}')">&#x2715; Close</button>
+        <span class="drill-title">📞 ${label} — Calls (${week.calls || 0})</span>
+        <button class="drill-close" onclick="closeDrillById('${chartId}')">✕ Close</button>
       </div>
-      <div class="drill-call-list">${callCards}</div>`;
+      <div class="drill-detail-grid">
+        ${drillStat('Calls Joined', week.calls || 0)}
+      </div>
+      ${week.call_notes ? `<div class="drill-note-block"><strong>Notes:</strong> ${week.call_notes}</div>` : '<div class="drill-no-detail">No call notes for this week. Add them in the Week Log tab.</div>'}`;
   }
-
 
   if (d.type === 'weekly-csat') {
     const week = d.weeks[idx];
@@ -323,30 +301,16 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'weekly-docs') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const docsLog = Array.isArray(week.docs_log) ? week.docs_log : [];
-    if (!docsLog.length) return drillEmpty(chartId, label, `No docs logged for ${label}. Add them in the Week Log tab.`);
-    const docCards = docsLog.map(doc => {
-      const hasUrl = !!doc.url;
-      return [
-        '<div class="drill-doc-card">',
-        '<div class="drill-doc-title">',
-        hasUrl
-          ? `<a href="${doc.url}" target="_blank" class="drill-doc-link">📄 ${doc.title || 'Untitled'} ↗</a>`
-          : `📄 ${doc.title || 'Untitled'}`,
-        '</div>',
-        hasUrl ? `<div class="drill-doc-url">${doc.url}</div>` : '',
-        doc.notes ? `<div class="drill-doc-notes">${doc.notes}</div>` : '',
-        '</div>'
-      ].join('');
-    }).join('');
     return `
       <div class="drill-header">
-        <span class="drill-title">&#128196; ${label} &mdash; Documentation (${docsLog.length})</span>
-        <button class="drill-close" onclick="closeDrillById('${chartId}')">&#x2715; Close</button>
+        <span class="drill-title">📄 ${label} — Documentation (${week.docs_completed || 0})</span>
+        <button class="drill-close" onclick="closeDrillById('${chartId}')">✕ Close</button>
       </div>
-      <div class="drill-doc-list">${docCards}</div>`;
+      <div class="drill-detail-grid">
+        ${drillStat('Docs Completed', week.docs_completed || 0)}
+      </div>
+      ${week.docs_notes ? `<div class="drill-note-block"><strong>Notes:</strong> ${week.docs_notes}</div>` : '<div class="drill-no-detail">No doc notes. Add them in the Week Log tab.</div>'}`;
   }
-
 
   if (d.type === 'sa-stage') {
     const stageKey = d.stageKeys[idx];
@@ -364,8 +328,8 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-new') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(d.weekNum(week));
-    const orgs = d.impls.filter(i => { const d2 = i.created_date || toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
+    const { start, end } = d.weekBounds(week.week_index || 1);
+    const orgs = d.impls.filter(i => { const d2 = toDateStr(i.created_at); return d2 && d2 >= start && d2 <= end; });
     if (!orgs.length) return drillEmpty(chartId, label, 'No implementations started this week.');
     return `
       <div class="drill-header">
@@ -378,7 +342,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-stable') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { start, end } = d.weekBounds(d.weekNum(week));
+    const { start, end } = d.weekBounds(week.week_index || 1);
     const orgs = d.impls.filter(i => {
       const entered = toDateStr((i.stage_entered_at || {})['Stability']);
       return entered && entered >= start && entered <= end;
@@ -395,7 +359,7 @@ function buildDrillContent(chartId, idx, label) {
   if (d.type === 'sa-time') {
     const week = d.weeks[idx];
     if (!week) return drillEmpty(chartId, label);
-    const { end } = d.weekBounds(d.weekNum(week));
+    const { end } = d.weekBounds(week.week_index || 1);
     const done = d.completed.filter(i => {
       const stab = toDateStr((i.stage_entered_at || {})['Stability']);
       return stab && stab <= end;
@@ -442,7 +406,6 @@ function buildDrillContent(chartId, idx, label) {
 
 function implCard(i, showTotalDays) {
   const ragEmoji = { Green: '🟢', Amber: '🟡', Red: '🔴' }[i.rag] || '⚪';
-  const ragClass = { Green: 'rag-green', Amber: 'rag-amber', Red: 'rag-red' }[i.rag] || '';
   const CHECKLISTS = window.STAGE_CHECKLISTS || {};
   const items = CHECKLISTS[i.stage] || [];
   const checklist = i.checklist || {};
@@ -455,7 +418,7 @@ function implCard(i, showTotalDays) {
     const stab = (i.stage_entered_at)['Stability'];
     if (pre && stab) {
       const days = Math.round((new Date(stab) - new Date(pre)) / 86400000);
-      daysStr = '<span class="drill-days-badge">' + days + 'd total</span>';
+      daysStr = '<span class="drill-days-badge">' + days + ' days total</span>';
     }
   } else if (i.stage_entered_at && i.stage_entered_at[i.stage]) {
     const daysIn = Math.round((new Date() - new Date(i.stage_entered_at[i.stage])) / 86400000);
@@ -466,11 +429,10 @@ function implCard(i, showTotalDays) {
   if (i.hubspot_url) links.push('<a href="' + i.hubspot_url + '" target="_blank" class="drill-link">HubSpot ↗</a>');
   if (i.slack_url)   links.push('<a href="' + i.slack_url   + '" target="_blank" class="drill-link">Slack ↗</a>');
 
-  return '<div class="drill-impl-card ' + ragClass + '">' +
+  return '<div class="drill-impl-card">' +
     '<div class="drill-impl-header">' +
       '<span class="drill-impl-name">' + (i.org_name || i.org || 'Unknown') + '</span>' +
-      '<span class="drill-impl-stage-pill">' + i.stage + '</span>' +
-      '<span class="drill-impl-meta">' + ragEmoji + ' ' + (i.rag || '—') + '</span>' +
+      '<span class="drill-impl-meta">' + ragEmoji + ' ' + (i.rag||'—') + ' &nbsp;·&nbsp; ' + i.stage + '</span>' +
       daysStr +
     '</div>' +
     '<div class="drill-impl-detail">' +
