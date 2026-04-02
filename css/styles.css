@@ -2459,62 +2459,56 @@ body.modal-open { overflow: hidden; }
 
 /* ── Responsive / iframe fixes ───────────────────────────────────── */
 
-/* Prevent horizontal overflow at the root */
-html, body { overflow-x: hidden; max-width: 100%; }
+html, body { overflow-x: hidden; }
 
-/* Header: keep brand and controls on one line, let tabs scroll underneath */
-.app-header { padding: 0; }
-.header-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  flex-wrap: nowrap;
-  overflow: hidden;
+/* ── Two-row header ──────────────────────────────────────────────── */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
-/* Tab nav: scroll horizontally instead of wrapping */
+/* Row 1: brand left, controls right */
+.header-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  gap: 12px;
+}
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Row 2: tabs — scrollable horizontally, never wrap */
 .tab-nav.tabs {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 0 16px;
+  padding: 0 12px;
   gap: 2px;
-  flex: none;
-  width: 100%;
+  background: var(--surface);
   border-top: 1px solid var(--border);
 }
 .tab-nav.tabs::-webkit-scrollbar { display: none; }
 .tab-btn { white-space: nowrap; flex-shrink: 0; }
 
-/* Theme toggle: keep compact */
-.theme-toggle { flex-shrink: 0; }
-.help-btn { flex-shrink: 0; }
-
-/* Brand: allow shrinking on narrow */
-.header-brand { flex-shrink: 1; min-width: 0; }
-.header-brand-text { min-width: 0; }
-.header-sub { display: none; } /* hide subtitle on narrow */
-
-/* Main content: full width with tighter padding */
-.app-main { padding: 16px; }
-
-/* Kanban: 4 cols → 2 cols → 1 col as width shrinks */
-@media (max-width: 900px) {
+/* Kanban: 4 → 2 → 1 column */
+@media (max-width: 860px) {
   .kanban-board { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 500px) {
+@media (max-width: 480px) {
   .kanban-board { grid-template-columns: 1fr; }
 }
 
-/* KPI stats row: wrap */
-.sa-stats { flex-wrap: wrap; }
-.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-
-/* Toolbar: wrap */
-.toolbar { flex-wrap: wrap; }
+/* KPI stats and toolbars: wrap gracefully */
+.sa-stats  { flex-wrap: wrap; }
+.kpi-grid  { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.toolbar   { flex-wrap: wrap; }
 .sa-toolbar { flex-wrap: wrap; }
 
 /* Detail meta grid */
@@ -2522,7 +2516,7 @@ html, body { overflow-x: hidden; max-width: 100%; }
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
 
-/* Help modal: full width on narrow */
+/* Help modal on narrow screens */
 @media (max-width: 600px) {
   .help-modal { max-width: 100%; border-radius: 0; }
   .modal-box  { width: 95vw; }
