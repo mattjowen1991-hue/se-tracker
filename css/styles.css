@@ -781,6 +781,10 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .activity-timeline { display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:4px; }
 .activity-entry { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; }
 .activity-entry-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.activity-entry-actions { margin-left:auto; display:none; gap:2px; }
+.activity-entry:hover .activity-entry-actions { display:flex; }
+.icon-btn-sm { font-size:12px; padding:2px 4px; opacity:0.6; }
+.icon-btn-sm:hover { opacity:1; }
 .activity-stage-tag { font-size:10px; background:var(--blue)22; color:var(--blue); border-radius:4px; padding:1px 6px; font-weight:600; }
 .timeline-date { font-size:10px; color:var(--muted); margin-left:auto; }
 .activity-note  { font-size:12px; color:var(--text); line-height:1.5; }

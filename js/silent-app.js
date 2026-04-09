@@ -494,13 +494,18 @@ function renderImplDetail(impl, allImpls) {
   // Activity timeline
   var timelineHtml = activity.length === 0
     ? '<div class="checklist-empty">No activity logged yet</div>'
-    : [...activity].reverse().map(function(entry) {
+    : [...activity].reverse().map(function(entry, ri) {
+        var realIndex = activity.length - 1 - ri;
         var rc = { Green: 'var(--green)', Amber: 'var(--amber)', Red: 'var(--red)' }[entry.rag] || '';
         return '<div class="activity-entry">' +
           '<div class="activity-entry-top">' +
             '<span class="activity-stage-tag">' + (entry.stage||'Note') + '</span>' +
             (entry.rag ? '<span style="color:' + rc + ';font-size:0.75rem;font-weight:600">' + entry.rag + '</span>' : '') +
             '<span class="timeline-date">' + (entry.date||'') + '</span>' +
+            '<span class="activity-entry-actions">' +
+              '<button class="icon-btn icon-btn-sm" onclick="showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')" title="Edit">✎</button>' +
+              '<button class="icon-btn icon-btn-sm" onclick="deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')" title="Delete">🗑</button>' +
+            '</span>' +
           '</div>' +
           '<div class="activity-note">' + entry.note + '</div>' +
           '<div class="activity-links">' +
@@ -653,6 +658,107 @@ async function addActivityEntry(implId) {
     if (updated) renderImplDetail(updated, window._implementations);
   } catch(e) {
     showToast('Save failed', 'error');
+  }
+}
+
+// ── Edit / delete activity entries ────────────────────────────────────────────
+
+function showEditActivityModal(implId, index) {
+  var impl = window._implementations.find(function(i){ return i.id === implId; });
+  if (!impl) return;
+  var activity = Array.isArray(impl.activity) ? impl.activity : [];
+  var entry = activity[index];
+  if (!entry) return;
+  var urls = entry.urls || (entry.url ? [entry.url] : []);
+
+  var existing = document.getElementById('edit-act-modal');
+  if (existing) existing.remove();
+
+  var html =
+    '<div id="edit-act-modal" class="modal" onclick="if(event.target===this)closeEditActivityModal()">' +
+      '<div class="modal-box" style="max-width:480px">' +
+        '<h3>Edit Activity Entry</h3>' +
+        '<label class="field-label">Date</label>' +
+        '<input id="edit-act-date" type="date" class="input-field" value="' + (entry.date || '') + '" />' +
+        '<label class="field-label">Stage</label>' +
+        '<select id="edit-act-stage" class="input-field">' +
+          STAGES.map(function(s){ return '<option value="'+s+'"'+(entry.stage===s?' selected':'')+'>'+s+'</option>'; }).join('') +
+          '<option value="Note"' + (entry.stage==='Note'?' selected':'') + '>Note only</option>' +
+        '</select>' +
+        '<label class="field-label">RAG</label>' +
+        '<select id="edit-act-rag" class="input-field">' +
+          '<option value="">No RAG</option>' +
+          '<option value="Green"' + (entry.rag==='Green'?' selected':'') + '>Green</option>' +
+          '<option value="Amber"' + (entry.rag==='Amber'?' selected':'') + '>Amber</option>' +
+          '<option value="Red"' + (entry.rag==='Red'?' selected':'') + '>Red</option>' +
+        '</select>' +
+        '<label class="field-label">Note</label>' +
+        '<textarea id="edit-act-note" class="input-field" rows="3">' + (entry.note || '') + '</textarea>' +
+        '<label class="field-label">URLs <span class="field-hint">(one per line)</span></label>' +
+        '<textarea id="edit-act-urls" class="input-field" rows="2" placeholder="https://...">' + urls.join('\n') + '</textarea>' +
+        '<div class="modal-actions">' +
+          '<button class="btn-secondary" onclick="closeEditActivityModal()">Cancel</button>' +
+          '<button class="btn-primary" onclick="saveEditedActivity(\'' + implId + '\',' + index + ')">Save</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.getElementById('silent-app-content').insertAdjacentHTML('beforeend', html);
+}
+
+function closeEditActivityModal() {
+  var m = document.getElementById('edit-act-modal');
+  if (m) m.remove();
+}
+
+async function saveEditedActivity(implId, index) {
+  var impl = window._implementations.find(function(i){ return i.id === implId; });
+  if (!impl) return;
+  var activity = Array.isArray(impl.activity) ? impl.activity.slice() : [];
+  if (!activity[index]) return;
+
+  var note = document.getElementById('edit-act-note').value.trim();
+  if (!note) { showToast('Note cannot be empty', 'error'); return; }
+
+  var urlsRaw = document.getElementById('edit-act-urls').value.trim();
+  var urls = urlsRaw ? urlsRaw.split('\n').map(function(u){ return u.trim(); }).filter(Boolean) : [];
+
+  activity[index] = {
+    date:  document.getElementById('edit-act-date').value,
+    stage: document.getElementById('edit-act-stage').value,
+    rag:   document.getElementById('edit-act-rag').value || undefined,
+    note:  note,
+    urls:  urls.length ? urls : undefined
+  };
+
+  showToast('Saving...', 'info');
+  try {
+    await updateImplementation(implId, { activity: activity });
+    closeEditActivityModal();
+    await reloadAll();
+    showToast('Entry updated', 'success');
+    var updated = window._implementations.find(function(i){ return i.id === implId; });
+    if (updated) renderImplDetail(updated, window._implementations);
+  } catch(e) {
+    showToast('Save failed', 'error');
+  }
+}
+
+async function deleteActivityEntry(implId, index) {
+  if (!confirm('Delete this activity entry?')) return;
+  var impl = window._implementations.find(function(i){ return i.id === implId; });
+  if (!impl) return;
+  var activity = Array.isArray(impl.activity) ? impl.activity.slice() : [];
+  activity.splice(index, 1);
+
+  showToast('Deleting...', 'info');
+  try {
+    await updateImplementation(implId, { activity: activity });
+    await reloadAll();
+    showToast('Entry deleted', 'success');
+    var updated = window._implementations.find(function(i){ return i.id === implId; });
+    if (updated) renderImplDetail(updated, window._implementations);
+  } catch(e) {
+    showToast('Delete failed', 'error');
   }
 }
 
