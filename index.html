@@ -40,6 +40,10 @@
       <button class="tab-btn" data-tab="se-escalations">SE Escalations</button>
       <button class="tab-btn" data-tab="deployment-escalations">Deployment Escalations</button>
       <button class="tab-btn" data-tab="docs">Documentation</button>
+      <div class="search-bar">
+        <input id="global-search" type="text" placeholder="Search org, name, notes…" class="search-input" oninput="handleSearch(this.value)" />
+        <button class="search-clear hidden" id="search-clear-btn" onclick="clearSearch()">✕</button>
+      </div>
     </nav>
   </header>
 

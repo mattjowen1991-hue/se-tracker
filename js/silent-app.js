@@ -70,6 +70,27 @@ function renderSilentApp(implementations) {
   const atRisk   = active.filter(i => i.rag === 'Red').length;
   const amber    = active.filter(i => i.rag === 'Amber').length;
 
+  // Needs Attention banner — stale + Red + urgent SE escalations
+  var staleImpls = active.filter(function(i) {
+    if (i.stage === 'Stability') return false;
+    var act = Array.isArray(i.activity) ? i.activity : [];
+    var lastDate = act.length > 0 ? new Date(act[act.length - 1].date) : (i.created_date ? new Date(i.created_date) : null);
+    return lastDate && Math.floor((new Date() - lastDate) / (1000*60*60*24)) >= 14;
+  });
+  var urgentSeEscs = (window._seEscalations || []).filter(function(e) {
+    return e.priority === 'Urgent' && e.stage !== 'Resolved' && e.stage !== 'Escalated';
+  });
+  var attentionItems = [];
+  if (atRisk > 0) attentionItems.push('<span class="att-red">' + atRisk + ' Red</span>');
+  if (staleImpls.length > 0) attentionItems.push('<span class="att-amber">' + staleImpls.length + ' stale (14d+ no activity)</span>');
+  if (urgentSeEscs.length > 0) attentionItems.push('<span class="att-red">' + urgentSeEscs.length + ' urgent SE escalation' + (urgentSeEscs.length > 1 ? 's' : '') + '</span>');
+  var attentionBanner = attentionItems.length > 0
+    ? '<div class="attention-banner">' +
+        '<span class="attention-label">NEEDS ATTENTION</span>' +
+        attentionItems.join('<span class="att-sep">&middot;</span>') +
+      '</div>'
+    : '';
+
   document.getElementById('silent-app-content').innerHTML =
     '<div class="sa-header">' +
       '<div class="sa-stats">' +
@@ -87,6 +108,7 @@ function renderSilentApp(implementations) {
         '<button class="btn-primary" onclick="showAddImplModal()" style="' + (_showArchived ? 'visibility:hidden' : '') + '">+ Add Implementation</button>' +
       '</div>' +
     '</div>' +
+    (!_showArchived ? attentionBanner : '') +
     (_showArchived
       ? (archived.length === 0
           ? '<div class="empty-state">No archived implementations.</div>'
@@ -202,9 +224,22 @@ function renderKanbanCard(impl) {
   var os         = Array.isArray(impl.os) ? impl.os.join(', ') : (impl.os || '');
   var fillColour = pct === 100 ? 'var(--green)' : 'var(--blue)';
 
-  return '<div class="kanban-card" draggable="true"' +
+  // Stale detection: no activity in 14+ days, not Stability/Archived
+  var isStale = false;
+  var staleDays = 0;
+  if (impl.stage !== 'Stability' && impl.stage !== 'Archived') {
+    var activity = Array.isArray(impl.activity) ? impl.activity : [];
+    var lastActivityDate = activity.length > 0 ? new Date(activity[activity.length - 1].date) : (impl.created_date ? new Date(impl.created_date) : null);
+    if (lastActivityDate) {
+      staleDays = Math.floor((new Date() - lastActivityDate) / (1000*60*60*24));
+      isStale = staleDays >= 14;
+    }
+  }
+
+  return '<div class="kanban-card' + (isStale ? ' kanban-card-stale' : '') + '" draggable="true"' +
     ' ondragstart="kanbanDragStart(event,\'' + impl.id + '\')" ondragend="kanbanDragEnd(event)"' +
     ' onclick="openImplDetail(\'' + impl.id + '\')">' +
+    (isStale ? '<div class="kanban-stale-badge">' + staleDays + 'd no activity</div>' : '') +
     '<div class="kanban-card-top">' +
       '<div class="kanban-card-org">' + impl.org + '</div>' +
       '<div class="rag-dot" style="background:' + ragColour + '" title="' + impl.rag + '"></div>' +
@@ -224,6 +259,7 @@ function renderKanbanCard(impl) {
         ? '<div class="kanban-next-action">→ ' + nextItem.text + '</div>'
         : (pct === 100 ? '<div class="kanban-next-action kanban-next-done">✓ Ready to advance</div>' : '');
     })() +
+    '<button class="kanban-quick-add" onclick="event.stopPropagation();showQuickActivityModal(\'' + impl.id + '\')" title="Quick add activity note">+</button>' +
   '</div>';
 }
 
@@ -580,6 +616,50 @@ async function addActivityEntry(implId) {
     showToast('Entry added!', 'success');
     var updated = window._implementations.find(function(i){ return i.id === implId; });
     if (updated) renderImplDetail(updated, window._implementations);
+  } catch(e) {
+    showToast('Save failed', 'error');
+  }
+}
+
+// ── Quick activity from kanban ────────────────────────────────────────────────
+
+function showQuickActivityModal(implId) {
+  var existing = document.getElementById('quick-act-modal');
+  if (existing) existing.remove();
+  var impl = window._implementations.find(function(i){ return i.id === implId; });
+  if (!impl) return;
+  var html =
+    '<div id="quick-act-modal" class="modal" onclick="if(event.target===this)closeQuickActivityModal()">' +
+      '<div class="modal-box" style="max-width:420px">' +
+        '<h3>Quick Note — ' + impl.org + '</h3>' +
+        '<textarea id="quick-act-note" placeholder="What happened? What\'s next?" class="input-field" rows="3"></textarea>' +
+        '<div class="modal-actions">' +
+          '<button class="btn-secondary" onclick="closeQuickActivityModal()">Cancel</button>' +
+          '<button class="btn-primary" onclick="saveQuickActivity(\'' + implId + '\')">Add Note</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.getElementById('silent-app-content').insertAdjacentHTML('beforeend', html);
+}
+
+function closeQuickActivityModal() {
+  var m = document.getElementById('quick-act-modal');
+  if (m) m.remove();
+}
+
+async function saveQuickActivity(implId) {
+  var note = document.getElementById('quick-act-note').value.trim();
+  if (!note) { showToast('Please add a note', 'error'); return; }
+  var impl = window._implementations.find(function(i){ return i.id === implId; });
+  if (!impl) return;
+  var entry = { stage: 'Note', date: localDateStr(), note: note };
+  var activity = (Array.isArray(impl.activity) ? impl.activity : []).concat([entry]);
+  showToast('Saving...', 'info');
+  try {
+    await updateImplementation(implId, { activity: activity });
+    closeQuickActivityModal();
+    await reloadAll();
+    showToast('Note added!', 'success');
   } catch(e) {
     showToast('Save failed', 'error');
   }

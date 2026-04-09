@@ -37,8 +37,28 @@ const HELP_CONTENT = {
         body: `Each card represents one customer org. The progress bar shows how many checklist items are complete for the current stage. Drag cards between columns to move an org to a new stage — this saves automatically and logs an activity entry.`
       },
       {
+        heading: 'Next action indicator',
+        body: `Each kanban card and the detail view show the first unchecked checklist item for the current stage — your next action at a glance. When all items are complete, it shows "Ready to advance" in green.`
+      },
+      {
+        heading: 'Time in stage',
+        body: `The pipeline in the detail view now shows how many days each stage took (or how long the current stage has been active). Use this to spot implementations that are taking longer than expected.`
+      },
+      {
+        heading: 'Stale implementation warning',
+        body: `Kanban cards with no activity logged in 14+ days (and not in Stability or Archived) show an amber warning badge. The "Needs Attention" banner at the top of the tab summarises Red implementations, stale ones, and any urgent SE escalations across the board.`
+      },
+      {
+        heading: 'Quick-add activity',
+        body: `Hover over any kanban card and click the "+" button to add a quick note without opening the detail view. This is useful for fast status updates.`
+      },
+      {
         heading: 'Detail view',
-        body: `Click any card or table row to open the full detail view. Here you can tick off checklist items (each saves immediately), add activity log entries to record what happened and what's next, change stage or RAG status, and see any deployment escalations linked to this org.`
+        body: `Click any card or table row to open the full detail view. The activity log form is at the top for quick access, followed by per-stage checklists and linked escalations. Tick off checklist items (each saves immediately), add activity log entries, and change stage or RAG status.`
+      },
+      {
+        heading: 'Search',
+        body: `The search bar in the top-right of the tab navigation filters the current tab by org name, contact name, or notes. It works across all tabs — Deployments, SE Escalations, Deployment Escalations, and Documentation. Type to filter, click ✕ to clear.`
       },
       {
         heading: 'Logging a deployment escalation from here',
@@ -78,13 +98,18 @@ const HELP_CONTENT = {
             ['Open', 'Actively being worked on.'],
             ['Pending', 'Waiting on something — customer response, engineering, or more logs.'],
             ['Blocked', 'Cannot progress without external action. Needs visibility.'],
-            ['Resolved', 'Issue closed. Moves to the Resolved tab.'],
+            ['Escalated', 'Handed off to Engineering. Stays here until engineering confirms a fix, then move to Resolved.'],
+            ['Resolved', 'Issue closed. Moves to the Resolved / Escalated tab.'],
           ]
         }
       },
       {
-        heading: 'Active vs Resolved',
-        body: `The Active view shows Open, Pending, and Blocked escalations. The Resolved view shows closed ones. Use the toggle at the top to switch. A resolved escalation can be moved back to Open at any time from its detail view — just click the Open button in the "Move to" section.`
+        heading: 'Active vs Resolved / Escalated',
+        body: `The Active view shows Open, Pending, and Blocked escalations. The Resolved / Escalated view shows closed ones and those handed to engineering. Use the toggle at the top to switch. Any escalation can be moved back to Open at any time from its detail view.`
+      },
+      {
+        heading: 'Sorting',
+        body: `Click any column header (Date, Org, Priority, Stage, MRR) to sort the table. Click again to reverse the sort direction. The active sort column shows a ▲ or ▼ indicator.`
       },
       {
         heading: 'Detail view',
@@ -130,6 +155,14 @@ const HELP_CONTENT = {
         }
       },
       {
+        heading: 'Days to resolve',
+        body: `Pending escalations automatically show how many days they've been open (in amber). When you change the outcome to "Resolved by SE" or "Escalated to Engineering" via the quick buttons or timeline, the days-to-resolve field is auto-filled if it wasn't set manually.`
+      },
+      {
+        heading: 'Sorting',
+        body: `Click any column header (Date, Deployment, Type, Outcome, Days) to sort the table. Click again to reverse the sort direction.`
+      },
+      {
         heading: 'Timeline',
         body: `Click any row to open the escalation detail view. The timeline is your case history — add an entry every time something significant happens: what you investigated, what you found, what was sent to engineering, and what the outcome was. Each entry can update the outcome and attach Slack or HubSpot URLs. Entries are shown newest first.`
       },
@@ -172,6 +205,14 @@ const HELP_CONTENT = {
       {
         heading: 'Updating the URL',
         body: `If you add a URL in a revision entry, it will automatically update the document's main URL too. This keeps the card on the main view always pointing to the latest version.`
+      },
+      {
+        heading: 'Category filter',
+        body: `Use the filter buttons at the top of the grid to show only documents in a specific category (e.g. Silent App, Customer-Facing). Click "All" to reset. Only categories with at least one document are shown.`
+      },
+      {
+        heading: 'Stale document indicator',
+        body: `Documents that haven't been updated in 90+ days show an amber border and a warning badge with the number of days since the last revision. Documents with no revisions at all are also flagged. Use this to keep your documentation current.`
       }
     ]
   }

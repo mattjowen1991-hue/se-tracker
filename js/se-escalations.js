@@ -2,6 +2,7 @@
 
 let _seEscView = 'active';
 let _viewingSeEsc = null;
+let _seEscSort = { field: 'date', dir: 'desc' };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,35 @@ function stageClass(s) {
 function formatMrr(val) {
   if (!val && val !== 0) return '—';
   return '$' + Number(val).toLocaleString();
+}
+
+function sortSeEscIcon(field) {
+  if (_seEscSort.field !== field) return ' <span class="sort-icon">⇅</span>';
+  return _seEscSort.dir === 'asc' ? ' <span class="sort-icon active">▲</span>' : ' <span class="sort-icon active">▼</span>';
+}
+
+function toggleSeEscSort(field) {
+  if (_seEscSort.field === field) {
+    _seEscSort.dir = _seEscSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _seEscSort = { field: field, dir: 'desc' };
+  }
+  renderSeEscalations(window._seEscalations);
+}
+
+function sortSeEscData(data) {
+  var f = _seEscSort.field;
+  var dir = _seEscSort.dir === 'asc' ? 1 : -1;
+  var priorityOrder = { 'Urgent': 3, 'High': 2, 'Normal': 1 };
+  return data.slice().sort(function(a, b) {
+    var va, vb;
+    if (f === 'priority') { va = priorityOrder[a.priority] || 0; vb = priorityOrder[b.priority] || 0; }
+    else if (f === 'mrr') { va = a.mrr || 0; vb = b.mrr || 0; }
+    else { va = (a[f] || '').toString().toLowerCase(); vb = (b[f] || '').toString().toLowerCase(); }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
 }
 
 // ── Shared modal HTML ─────────────────────────────────────────────────────────
@@ -117,12 +147,17 @@ function renderSeEscalations(escalations) {
 
     <table class="data-table">
       <thead><tr>
-        <th>Date</th><th>Org</th><th>Priority</th><th>Stage</th><th>MRR</th><th>Notes</th><th></th>
+        <th class="sortable-th" onclick="toggleSeEscSort('date')">Date${sortSeEscIcon('date')}</th>
+        <th class="sortable-th" onclick="toggleSeEscSort('org')">Org${sortSeEscIcon('org')}</th>
+        <th class="sortable-th" onclick="toggleSeEscSort('priority')">Priority${sortSeEscIcon('priority')}</th>
+        <th class="sortable-th" onclick="toggleSeEscSort('stage')">Stage${sortSeEscIcon('stage')}</th>
+        <th class="sortable-th" onclick="toggleSeEscSort('mrr')">MRR${sortSeEscIcon('mrr')}</th>
+        <th>Notes</th><th></th>
       </tr></thead>
       <tbody>
         ${display.length === 0
           ? `<tr><td colspan="7" class="empty-cell">No ${_seEscView === 'active' ? 'active' : 'resolved'} escalations.</td></tr>`
-          : display.map(e => `
+          : sortSeEscData(display).map(e => `
             <tr class="clickable-row" onclick="openSeEscDetail('${e.id}')">
               <td>${e.date || '—'}</td>
               <td><strong>${e.org}</strong></td>

@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Main app — tab routing and data loading
 
 let currentTab = 'deployments';
+let _searchQuery = '';
 
 window._implementations    = [];
 window._escalations        = [];
@@ -46,24 +47,52 @@ function renderTab(tab) {
     el.classList.toggle('hidden', el.id !== `${tab}-tab`);
   });
 
+  var q = _searchQuery.toLowerCase().trim();
+
   switch (tab) {
     case 'deployments':
-      renderSilentApp(window._implementations);
+      var implData = q ? window._implementations.filter(function(i) {
+        return (i.org || '').toLowerCase().includes(q) || (i.contact_name || '').toLowerCase().includes(q) || (i.notes || '').toLowerCase().includes(q);
+      }) : window._implementations;
+      renderSilentApp(implData);
       break;
     case 'se-escalations':
-      renderSeEscalations(window._seEscalations);
+      var seData = q ? window._seEscalations.filter(function(e) {
+        return (e.org || '').toLowerCase().includes(q) || (e.notes || '').toLowerCase().includes(q);
+      }) : window._seEscalations;
+      renderSeEscalations(seData);
       break;
     case 'deployment-escalations':
-      renderEscalations(window._escalations);
+      var escData = q ? window._escalations.filter(function(e) {
+        return (e.org || '').toLowerCase().includes(q) || (e.notes || '').toLowerCase().includes(q) || (e.type || '').toLowerCase().includes(q);
+      }) : window._escalations;
+      renderEscalations(escData);
       break;
     case 'docs':
-      renderDocs(window._docs);
+      var docData = q ? window._docs.filter(function(d) {
+        return (d.title || '').toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q) || (d.notes || '').toLowerCase().includes(q);
+      }) : window._docs;
+      renderDocs(docData);
       break;
   }
 }
 
 function switchTab(tab) {
   renderTab(tab);
+}
+
+function handleSearch(value) {
+  _searchQuery = value;
+  var clearBtn = document.getElementById('search-clear-btn');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !value);
+  renderTab(currentTab);
+}
+
+function clearSearch() {
+  _searchQuery = '';
+  var el = document.getElementById('global-search');
+  if (el) el.value = '';
+  renderTab(currentTab);
 }
 
 function showToast(msg, type = 'info') {

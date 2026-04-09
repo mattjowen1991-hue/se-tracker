@@ -1,6 +1,7 @@
 // Deployment Escalations tab — every escalation is linked to a deployment
 
 let _viewingEscalation = null;
+let _escSort = { field: 'date', dir: 'desc' };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,34 @@ function buildDeploymentOptions(selectedId) {
   return impls.map(i =>
     `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>[${i.stage}] ${i.org}</option>`
   ).join('');
+}
+
+function sortEscIcon(field) {
+  if (_escSort.field !== field) return ' <span class="sort-icon">⇅</span>';
+  return _escSort.dir === 'asc' ? ' <span class="sort-icon active">▲</span>' : ' <span class="sort-icon active">▼</span>';
+}
+
+function toggleEscSort(field) {
+  if (_escSort.field === field) {
+    _escSort.dir = _escSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _escSort = { field: field, dir: 'desc' };
+  }
+  renderEscalations(window._escalations);
+}
+
+function sortEscData(data) {
+  var f = _escSort.field;
+  var dir = _escSort.dir === 'asc' ? 1 : -1;
+  return data.slice().sort(function(a, b) {
+    var va, vb;
+    if (f === 'days_to_resolve') { va = a.days_to_resolve || 9999; vb = b.days_to_resolve || 9999; }
+    else if (f === 'deployment') { va = getDeploymentName(a.implementation_id).toLowerCase(); vb = getDeploymentName(b.implementation_id).toLowerCase(); }
+    else { va = (a[f] || '').toString().toLowerCase(); vb = (b[f] || '').toString().toLowerCase(); }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
@@ -62,18 +91,18 @@ function renderEscalations(escalations) {
       </div>` : `
     <table class="data-table">
       <thead><tr>
-        <th>Date</th>
-        <th>Deployment</th>
-        <th>Type</th>
-        <th>Outcome</th>
-        <th>Days</th>
+        <th class="sortable-th" onclick="toggleEscSort('date')">Date${sortEscIcon('date')}</th>
+        <th class="sortable-th" onclick="toggleEscSort('deployment')">Deployment${sortEscIcon('deployment')}</th>
+        <th class="sortable-th" onclick="toggleEscSort('type')">Type${sortEscIcon('type')}</th>
+        <th class="sortable-th" onclick="toggleEscSort('outcome')">Outcome${sortEscIcon('outcome')}</th>
+        <th class="sortable-th" onclick="toggleEscSort('days_to_resolve')">Days${sortEscIcon('days_to_resolve')}</th>
         <th>Notes</th>
         <th></th>
       </tr></thead>
       <tbody>
         ${escalations.length === 0
           ? '<tr><td colspan="7" class="empty-cell">No deployment escalations logged yet.</td></tr>'
-          : escalations.map(e => `
+          : sortEscData(escalations).map(e => `
             <tr class="clickable-row" onclick="openEscalationDetail('${e.id}')">
               <td>${e.date || '—'}</td>
               <td><strong>${getDeploymentName(e.implementation_id)}</strong></td>
