@@ -832,6 +832,9 @@ async function saveImpl() {
     slack_url:         document.getElementById('impl-slack-url').value.trim() || null,
     notes:             document.getElementById('impl-notes').value.trim(),
     os:                os.length ? os : null,
+    plan:              document.getElementById('impl-plan').value || null,
+    app_version:       document.getElementById('impl-app-version').value.trim() || null,
+    large_deployment:  document.getElementById('impl-large-deployment').checked,
   };
   if (!data.org) { showToast('Organisation name is required', 'error'); return; }
   if (!id) {
