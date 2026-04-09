@@ -779,15 +779,33 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .activity-form  { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:16px; }
 .input-sm { font-size:12px; padding:6px 10px; }
 .activity-timeline { display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:4px; }
-.activity-entry { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; position:relative; }
-.activity-entry-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
-.activity-entry-actions { position:absolute; top:8px; right:8px; display:none; gap:4px; }
-.activity-entry:hover .activity-entry-actions { display:flex; }
-.act-action-btn { font-size:10px; font-family:var(--font-mono); padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; transition:all 0.15s; }
-.act-action-btn:hover { border-color:var(--blue); color:var(--blue); }
-.activity-stage-tag { font-size:10px; background:var(--blue)22; color:var(--blue); border-radius:4px; padding:1px 6px; font-weight:600; }
-.timeline-date { font-size:10px; color:var(--muted); margin-left:auto; }
-.activity-note  { font-size:12px; color:var(--text); line-height:1.5; }
+/* Timeline entry — collapsed by default */
+.tl-entry { border:1px solid var(--border); border-radius:8px; background:var(--bg); overflow:hidden; }
+.tl-entry.tl-expanded { border-color:var(--blue)44; }
+.tl-summary { display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; transition:background 0.1s; min-height:36px; }
+.tl-summary:hover { background:var(--surface2); }
+.tl-date { font-size:10px; font-family:var(--font-mono); color:var(--muted); white-space:nowrap; flex-shrink:0; }
+.tl-rag-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tl-preview { font-size:11px; color:var(--text); opacity:0.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+.tl-pills { display:flex; gap:4px; flex-shrink:0; }
+.tl-link-pill { font-size:9px; font-family:var(--font-mono); color:var(--blue); background:var(--blue)11; border:1px solid var(--blue)33; border-radius:3px; padding:1px 6px; text-decoration:none; white-space:nowrap; }
+.tl-link-pill:hover { background:var(--blue)22; text-decoration:none; }
+.tl-actions { position:relative; flex-shrink:0; }
+.tl-menu-btn { background:none; border:1px solid transparent; border-radius:4px; color:var(--muted); cursor:pointer; font-size:14px; font-weight:bold; line-height:1; padding:0 4px; letter-spacing:1px; opacity:0; transition:opacity 0.15s; }
+.tl-entry:hover .tl-menu-btn { opacity:1; }
+.tl-menu-btn:hover { border-color:var(--border); color:var(--text); }
+.tl-menu { position:absolute; top:100%; right:0; background:var(--surface); border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10; overflow:hidden; min-width:80px; }
+.tl-menu button { display:block; width:100%; padding:6px 12px; font-size:11px; font-family:var(--font-sans); color:var(--text); background:none; border:none; cursor:pointer; text-align:left; }
+.tl-menu button:hover { background:var(--surface2); }
+.tl-count { font-size:11px; font-weight:400; color:var(--muted); margin-left:8px; }
+
+/* Timeline expanded body */
+.tl-body { padding:0 12px 12px 12px; border-top:1px solid var(--border); }
+.tl-body-links { display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; }
+
+/* Shared */
+.activity-stage-tag { font-size:10px; background:var(--blue)22; color:var(--blue); border-radius:4px; padding:1px 6px; font-weight:600; white-space:nowrap; flex-shrink:0; }
+.activity-note  { font-size:12px; color:var(--text); line-height:1.6; padding-top:10px; }
 .activity-links { display:flex; gap:10px; margin-top:6px; flex-wrap:wrap; }
 .activity-link  { font-size:11px; color:var(--blue); text-decoration:none; }
 .activity-link:hover { text-decoration:underline; }
@@ -2269,7 +2287,7 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 [data-theme="light"] .kanban-col  { background: #edf1f7; }
 
 /* Activity / timeline entries */
-[data-theme="light"] .activity-entry { background: var(--surface2); }
+[data-theme="light"] .tl-entry { background: var(--surface2); }
 [data-theme="light"] .timeline-entry { background: var(--surface2); }
 
 /* Toast */

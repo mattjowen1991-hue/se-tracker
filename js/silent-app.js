@@ -505,29 +505,58 @@ function renderImplDetail(impl, allImpls) {
         }).join('')) +
   '</div>';
 
-  // Activity timeline
+  // Activity timeline — collapsed by default, expand on click
+  function truncateNote(text, max) {
+    if (!text) return '';
+    var plain = text.replace(/\*\*/g, '').replace(/\*/g, '');
+    if (plain.length <= max) return plain;
+    return plain.substring(0, max) + '…';
+  }
+
+  function renderLinkPills(entry) {
+    var urls = entry.urls || (entry.url ? [entry.url] : []);
+    if (!urls.length) return '';
+    return urls.map(function(u, i) {
+      if (typeof u === 'string') return '<a href="' + u + '" target="_blank" class="tl-link-pill" onclick="event.stopPropagation()">Link' + (urls.length > 1 ? ' ' + (i+1) : '') + '</a>';
+      return '<a href="' + u.url + '" target="_blank" class="tl-link-pill" onclick="event.stopPropagation()">' + (u.label || 'Link') + '</a>';
+    }).join('');
+  }
+
   var timelineHtml = activity.length === 0
     ? '<div class="checklist-empty">No activity logged yet</div>'
     : [...activity].reverse().map(function(entry, ri) {
         var realIndex = activity.length - 1 - ri;
         var rc = { Green: 'var(--green)', Amber: 'var(--amber)', Red: 'var(--red)' }[entry.rag] || '';
-        return '<div class="activity-entry">' +
-          '<div class="activity-entry-top">' +
+        var ragDot = entry.rag ? '<span class="tl-rag-dot" style="background:' + rc + '"></span>' : '';
+        var preview = truncateNote(entry.note, 120);
+        var linkPills = renderLinkPills(entry);
+        var entryId = 'act-entry-' + realIndex;
+
+        return '<div class="tl-entry" id="' + entryId + '">' +
+          // Collapsed summary row — always visible
+          '<div class="tl-summary" onclick="toggleActivityEntry(\'' + entryId + '\')">' +
+            '<span class="tl-date">' + (entry.date||'') + '</span>' +
             '<span class="activity-stage-tag">' + (entry.stage||'Note') + '</span>' +
-            (entry.rag ? '<span style="color:' + rc + ';font-size:0.75rem;font-weight:600">' + entry.rag + '</span>' : '') +
-            '<span class="timeline-date">' + (entry.date||'') + '</span>' +
-            '<span class="activity-entry-actions">' +
-              '<button class="act-action-btn" onclick="event.stopPropagation();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
-              '<button class="act-action-btn" onclick="event.stopPropagation();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Del</button>' +
+            ragDot +
+            '<span class="tl-preview">' + preview + '</span>' +
+            '<span class="tl-pills">' + linkPills + '</span>' +
+            '<span class="tl-actions">' +
+              '<button class="tl-menu-btn" onclick="event.stopPropagation();toggleTlMenu(\'' + entryId + '\')" title="Actions">...</button>' +
+              '<span class="tl-menu hidden" id="' + entryId + '-menu">' +
+                '<button onclick="event.stopPropagation();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
+                '<button onclick="event.stopPropagation();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Delete</button>' +
+              '</span>' +
             '</span>' +
           '</div>' +
-          '<div class="activity-note">' + formatNote(entry.note) + '</div>' +
-          '<div class="activity-links">' +
-            (entry.urls && entry.urls.length ? entry.urls.map(function(u, i) {
-              // Support both old format (plain string) and new format ({label, url})
-              if (typeof u === 'string') return '<a href="' + u + '" target="_blank" class="activity-link">🔗 Link ' + (entry.urls.length > 1 ? (i+1) : '') + '</a>';
-              return '<a href="' + u.url + '" target="_blank" class="activity-link">🔗 ' + (u.label || 'Link' + (entry.urls.length > 1 ? ' ' + (i+1) : '')) + '</a>';
-            }).join('') : (entry.url ? '<a href="' + entry.url + '" target="_blank" class="activity-link">🔗 Link</a>' : '')) +
+          // Expanded body — hidden by default
+          '<div class="tl-body hidden">' +
+            '<div class="activity-note">' + formatNote(entry.note) + '</div>' +
+            (linkPills ? '<div class="tl-body-links">' +
+              (entry.urls || (entry.url ? [entry.url] : [])).map(function(u, i) {
+                if (typeof u === 'string') return '<a href="' + u + '" target="_blank" class="activity-link">🔗 Link' + ((entry.urls||[]).length > 1 ? ' ' + (i+1) : '') + '</a>';
+                return '<a href="' + u.url + '" target="_blank" class="activity-link">🔗 ' + (u.label || 'Link') + '</a>';
+              }).join('') +
+            '</div>' : '') +
           '</div>' +
         '</div>';
       }).join('');
@@ -577,9 +606,9 @@ function renderImplDetail(impl, allImpls) {
         (impl.notes ? '<div class="detail-notes">' + impl.notes + '</div>' : '') +
       '</div>' +
 
-      // Activity log — form + scrollable entries (positioned above checklists for quick access)
+      // Activity log — form card
       '<div class="activity-card">' +
-        '<div class="activity-header">Activity Log</div>' +
+        '<div class="activity-header">Add Activity</div>' +
         '<div class="activity-form">' +
           '<select id="act-stage" class="input-field input-sm">' +
             STAGES.map(function(s){ return '<option value="'+s+'"'+(impl.stage===s?' selected':'')+'>'+s+'</option>'; }).join('') +
@@ -593,9 +622,14 @@ function renderImplDetail(impl, allImpls) {
           '</select>' +
           '<textarea id="act-note" placeholder="What happened? What\'s next?  Use **bold** and *italic*" class="input-field" rows="3"></textarea>' +
           '<div id="act-urls-container"></div>' +
-          '<button type="button" class="btn-secondary btn-sm" style="width:100%;margin-bottom:4px" onclick="addUrlField()">+ Add URL</button>' +
+          '<button type="button" class="btn-secondary btn-sm" style="width:100%;margin-bottom:4px" onclick="addUrlField()">+ Add Link</button>' +
           '<button class="btn-primary btn-sm" style="width:100%" onclick="addActivityEntry(\'' + impl.id + '\')">Add Entry</button>' +
         '</div>' +
+      '</div>' +
+
+      // Timeline card — separate, scannable
+      '<div class="activity-card">' +
+        '<div class="activity-header">Timeline <span class="tl-count">' + activity.length + ' entries</span></div>' +
         '<div class="activity-timeline">' + timelineHtml + '</div>' +
       '</div>' +
 
@@ -682,6 +716,32 @@ async function addActivityEntry(implId) {
     showToast('Save failed', 'error');
   }
 }
+
+// ── Timeline expand/collapse ──────────────────────────────────────────────────
+
+function toggleActivityEntry(entryId) {
+  var el = document.getElementById(entryId);
+  if (!el) return;
+  var body = el.querySelector('.tl-body');
+  var preview = el.querySelector('.tl-preview');
+  if (!body) return;
+  var isExpanded = !body.classList.contains('hidden');
+  body.classList.toggle('hidden');
+  el.classList.toggle('tl-expanded');
+  if (preview) preview.classList.toggle('hidden', !isExpanded);
+}
+
+function toggleTlMenu(entryId) {
+  // Close all other menus first
+  document.querySelectorAll('.tl-menu').forEach(function(m) { m.classList.add('hidden'); });
+  var menu = document.getElementById(entryId + '-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+// Close menus on click outside
+document.addEventListener('click', function() {
+  document.querySelectorAll('.tl-menu').forEach(function(m) { m.classList.add('hidden'); });
+});
 
 // ── Edit / delete activity entries ────────────────────────────────────────────
 
