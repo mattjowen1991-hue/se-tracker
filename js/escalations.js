@@ -79,7 +79,10 @@ function renderEscalations(escalations) {
               <td><strong>${getDeploymentName(e.implementation_id)}</strong></td>
               <td><span class="tag">${e.type}${e.other_desc ? ': ' + e.other_desc : ''}</span></td>
               <td><span class="outcome ${e.outcome.toLowerCase().replace(/ /g, '-')}">${e.outcome}</span></td>
-              <td>${e.days_to_resolve ?? '—'}</td>
+              <td>${e.days_to_resolve != null ? e.days_to_resolve
+                : (e.outcome === 'Pending' && e.date
+                  ? '<span style="color:var(--amber)">' + Math.floor((new Date() - new Date(e.date)) / (86400000)) + 'd</span>'
+                  : '—')}</td>
               <td class="notes-cell">${e.notes || '—'}</td>
               <td><button class="icon-btn" onclick="event.stopPropagation();removeEscalation('${e.id}')">🗑</button></td>
             </tr>`).join('')}
@@ -241,7 +244,10 @@ function renderEscalationDetail(esc) {
         </div>
         <div class="meta-item">
           <span class="meta-label">Days to resolve</span>
-          <span>${esc.days_to_resolve ?? 'Ongoing'}</span>
+          <span>${esc.days_to_resolve != null ? esc.days_to_resolve
+            : (esc.outcome === 'Pending' && esc.date
+              ? '<span style="color:var(--amber)">' + Math.floor((new Date() - new Date(esc.date)) / (1000*60*60*24)) + 'd open</span>'
+              : 'Ongoing')}</span>
         </div>
         ${impl ? `
         <div class="meta-item">
@@ -384,7 +390,13 @@ async function saveTimelineEntry(escId) {
 
   const timeline = Array.isArray(esc.timeline) ? [...esc.timeline, entry] : [entry];
   const updates  = { timeline };
-  if (entry.outcome_change) updates.outcome = entry.outcome_change;
+  if (entry.outcome_change) {
+    updates.outcome = entry.outcome_change;
+    // Auto-calculate days_to_resolve when closing, if not already set
+    if (entry.outcome_change !== 'Pending' && esc.date && esc.days_to_resolve == null) {
+      updates.days_to_resolve = Math.floor((new Date() - new Date(esc.date)) / (1000*60*60*24));
+    }
+  }
 
   try {
     await updateEscalation(escId, updates);
@@ -419,7 +431,13 @@ async function deleteTimelineEntry(escId, index) {
 
 async function quickChangeOutcome(escId, newOutcome) {
   try {
-    await updateEscalation(escId, { outcome: newOutcome });
+    const esc = window._escalations.find(e => e.id === escId);
+    const updates = { outcome: newOutcome };
+    // Auto-calculate days_to_resolve when closing, if not already set
+    if (newOutcome !== 'Pending' && esc && esc.date && esc.days_to_resolve == null) {
+      updates.days_to_resolve = Math.floor((new Date() - new Date(esc.date)) / (1000*60*60*24));
+    }
+    await updateEscalation(escId, updates);
     showToast('Outcome updated to ' + newOutcome, 'success');
     await reloadAll();
     _viewingEscalation = escId;

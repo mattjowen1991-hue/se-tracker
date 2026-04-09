@@ -1,6 +1,7 @@
 // Docs tab — permanent doc records with revision history
 
 let _viewingDoc = null;
+let _docCategoryFilter = 'All';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,11 @@ function renderDocs(docs) {
     _viewingDoc = null;
   }
 
+  const filtered = _docCategoryFilter === 'All' ? docs : docs.filter(d => d.category === _docCategoryFilter);
+  const usedCategories = [...new Set(docs.map(d => d.category).filter(Boolean))];
+  const staleThreshold = 90;
+  const now = new Date();
+
   document.getElementById('docs-content').innerHTML = `
     <div class="toolbar">
       <div class="kpi-row">
@@ -38,16 +44,29 @@ function renderDocs(docs) {
       <button class="btn-primary" onclick="showAddDocModal()">+ Add Document</button>
     </div>
 
-    ${docs.length === 0
+    ${usedCategories.length > 0 ? `
+    <div class="doc-filters">
+      <button class="doc-filter-btn ${_docCategoryFilter === 'All' ? 'active' : ''}" onclick="filterDocsByCategory('All')">All (${docs.length})</button>
+      ${usedCategories.map(c => {
+        const count = docs.filter(d => d.category === c).length;
+        return `<button class="doc-filter-btn ${_docCategoryFilter === c ? 'active' : ''}" onclick="filterDocsByCategory('${c}')">${c} (${count})</button>`;
+      }).join('')}
+    </div>` : ''}
+
+    ${filtered.length === 0
       ? `<div class="empty-state">
-           <p>No documents tracked yet. Add your first one to start building a revision history.</p>
+           <p>${_docCategoryFilter !== 'All' ? 'No documents in this category.' : 'No documents tracked yet. Add your first one to start building a revision history.'}</p>
          </div>`
       : `<div class="docs-grid">
-          ${docs.map(d => {
+          ${filtered.map(d => {
             const revisions = Array.isArray(d.revisions) ? d.revisions : [];
             const latest = revisions.length > 0 ? revisions[revisions.length - 1] : null;
+            const lastDate = latest ? new Date(latest.date) : null;
+            const daysSince = lastDate ? Math.floor((now - lastDate) / (1000*60*60*24)) : null;
+            const isStale = daysSince !== null && daysSince >= staleThreshold;
+            const hasNoRevisions = revisions.length === 0;
             return `
-              <div class="doc-card" onclick="openDocDetail('${d.id}')">
+              <div class="doc-card ${isStale ? 'doc-stale' : ''}" onclick="openDocDetail('${d.id}')">
                 <div class="doc-card-header">
                   <div class="doc-card-title">${d.title}</div>
                   ${d.category ? `<span class="doc-category-badge">${d.category}</span>` : ''}
@@ -57,12 +76,21 @@ function renderDocs(docs) {
                   <span>${revisions.length} revision${revisions.length !== 1 ? 's' : ''}</span>
                   ${latest ? `<span>Last updated ${latest.date || '—'}</span>` : '<span class="muted">No revisions yet</span>'}
                 </div>
+                ${isStale ? `<div class="doc-stale-badge">${daysSince}d since last update — may need review</div>` : ''}
+                ${hasNoRevisions ? `<div class="doc-stale-badge">No revisions logged yet</div>` : ''}
                 ${d.notes ? `<div class="doc-card-notes">${d.notes}</div>` : ''}
               </div>`;
           }).join('')}
         </div>`}
 
   `;
+}
+
+// ── Category filter ──────────────────────────────────────────────────────────
+
+function filterDocsByCategory(category) {
+  _docCategoryFilter = category;
+  renderDocs(window._docs);
 }
 
 // ── Add / Edit modal ──────────────────────────────────────────────────────────

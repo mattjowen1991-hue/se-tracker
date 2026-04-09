@@ -15,7 +15,7 @@ const ESCALATION_TYPES = ['Silent App', 'MDM/RDS', 'Network', 'API', 'Billing', 
 const ESCALATION_OUTCOMES = ['Resolved by SE', 'Escalated to Engineering', 'Pending'];
 
 // SE escalation stages
-const SE_ESC_STAGES = ['Open', 'Pending', 'Blocked', 'Resolved'];
+const SE_ESC_STAGES = ['Open', 'Pending', 'Blocked', 'Escalated', 'Resolved'];
 
 // SE escalation priorities
 const SE_ESC_PRIORITIES = ['Normal', 'High', 'Urgent'];

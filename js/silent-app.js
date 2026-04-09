@@ -126,12 +126,6 @@ function renderImplModal(impl) {
         '<input id="impl-contact-email" placeholder="Contact email" class="input-field" value="' + (impl ? impl.contact_email || '' : '') + '" />' +
         '<input id="impl-org-size" placeholder="Number of devices" type="number" class="input-field" value="' + (impl ? impl.org_size || '' : '') + '" />' +
         '<input id="impl-mdm" placeholder="MDM tool (e.g. Intune, Jamf, GPO, None)" class="input-field" value="' + (impl ? impl.mdm_type || '' : '') + '" />' +
-        '<select id="impl-deployment-method" class="input-field">' +
-          '<option value="">Deployment method...</option>' +
-          ['MDM (Intune)', 'MDM (Jamf)', 'MDM (GPO)', 'MDM (Other)', 'Script', 'Individual / Manual', 'AnyDesk / Remote'].map(function(m) {
-            return '<option value="' + m + '"' + (impl && impl.deployment_method === m ? ' selected' : '') + '>' + m + '</option>';
-          }).join('') +
-        '</select>' +
         '<select id="impl-plan" class="input-field">' +
           '<option value="">Plan tier...</option>' +
           ['Enterprise', 'Teams + Silent App add-on', 'Starter'].map(function(p) {
@@ -224,6 +218,12 @@ function renderKanbanCard(impl) {
       '</div>' +
       '<span class="progress-label">' + completed + '/' + total + '</span>' +
     '</div>' +
+    (function() {
+      var nextItem = stageItems.find(function(item) { return !checklist[item.id]; });
+      return nextItem
+        ? '<div class="kanban-next-action">→ ' + nextItem.text + '</div>'
+        : (pct === 100 ? '<div class="kanban-next-action kanban-next-done">✓ Ready to advance</div>' : '');
+    })() +
   '</div>';
 }
 
@@ -340,21 +340,49 @@ function renderImplDetail(impl, allImpls) {
   var stageEnteredAt = impl.stage_entered_at || {};
   var stageIdx       = STAGES.indexOf(impl.stage);
 
-  // Pipeline
+  // Pipeline with time-in-stage durations
   var pipelineHtml = '<div class="stage-pipeline">';
   STAGES.forEach(function(s, i) {
     var isDone   = i < stageIdx;
     var isActive = i === stageIdx;
     var cls      = 'pipeline-step' + (isDone?' done':'') + (isActive?' active':'');
+    var daysInStage = '';
+    if (stageEnteredAt[s]) {
+      var enteredDate = new Date(stageEnteredAt[s]);
+      var exitDate;
+      if (isDone && STAGES[i+1] && stageEnteredAt[STAGES[i+1]]) {
+        exitDate = new Date(stageEnteredAt[STAGES[i+1]]);
+      } else if (isActive) {
+        exitDate = new Date();
+      }
+      if (exitDate) {
+        var days = Math.floor((exitDate - enteredDate) / (1000*60*60*24));
+        daysInStage = '<div class="pipeline-days">' + days + 'd</div>';
+      }
+    }
     pipelineHtml +=
       '<div class="' + cls + '">' +
         '<div class="pipeline-dot"></div>' +
         '<div class="pipeline-label">' + s + '</div>' +
         (stageEnteredAt[s] ? '<div class="pipeline-date">' + stageEnteredAt[s] + '</div>' : '') +
+        daysInStage +
       '</div>' +
       (i < STAGES.length-1 ? '<div class="pipeline-line' + (isDone?' done':'') + '"></div>' : '');
   });
   pipelineHtml += '</div>';
+
+  // Next action — first unchecked item in current stage
+  var currentStageItems = DEFAULT_CHECKLISTS[impl.stage] || [];
+  var nextAction = currentStageItems.find(function(item) { return !checklist[item.id]; });
+  var nextActionHtml = nextAction
+    ? '<div class="next-action-banner">' +
+        '<span class="next-action-label">NEXT ACTION</span>' +
+        '<span class="next-action-text">' + nextAction.text + '</span>' +
+      '</div>'
+    : (impl.stage !== 'Archived' ? '<div class="next-action-banner next-action-done">' +
+        '<span class="next-action-label">STAGE COMPLETE</span>' +
+        '<span class="next-action-text">All ' + impl.stage + ' checklist items done — ready to advance</span>' +
+      '</div>' : '');
 
   // Checklists
   var checklistsHtml = STAGES.map(function(stage) {
@@ -433,7 +461,6 @@ function renderImplDetail(impl, allImpls) {
               (os.length ? ' &nbsp;·&nbsp; ' + os.join(', ') : '') +
               (impl.deployment_method ? ' &nbsp;·&nbsp; ' + impl.deployment_method : '') +
               (impl.mdm_type ? ' &nbsp;·&nbsp; MDM: ' + impl.mdm_type : '') +
-              (impl.deployment_method ? ' &nbsp;·&nbsp; ' + impl.deployment_method : '') +
             '</div>' +
             ((impl.plan || impl.app_version) ? '<div class="detail-meta" style="margin-top:4px;color:var(--muted)">' +
               (impl.plan ? impl.plan : '') +
@@ -454,14 +481,11 @@ function renderImplDetail(impl, allImpls) {
           '</div>' +
         '</div>' +
         pipelineHtml +
+        nextActionHtml +
         (impl.notes ? '<div class="detail-notes">' + impl.notes + '</div>' : '') +
       '</div>' +
 
-      // Checklists + linked escalations
-      checklistsHtml +
-      linkedHtml +
-
-      // Activity log — form + scrollable entries
+      // Activity log — form + scrollable entries (positioned above checklists for quick access)
       '<div class="activity-card">' +
         '<div class="activity-header">Activity Log</div>' +
         '<div class="activity-form">' +
@@ -482,6 +506,10 @@ function renderImplDetail(impl, allImpls) {
         '</div>' +
         '<div class="activity-timeline">' + timelineHtml + '</div>' +
       '</div>' +
+
+      // Checklists + linked escalations
+      checklistsHtml +
+      linkedHtml +
 
     '</div>' +
     renderImplModal(impl) +
@@ -638,7 +666,6 @@ function showAddImplModal() {
   });
   document.querySelectorAll('.impl-os-cb').forEach(function(cb){ cb.checked = false; });
   document.getElementById('impl-stage').value = STAGES[0];
-  document.getElementById('impl-deployment-method').value = '';
   document.getElementById('impl-plan').value = '';
   document.getElementById('impl-large-deployment').checked = false;
   document.getElementById('impl-rag').value = 'Green';
@@ -660,7 +687,6 @@ function editImpl(id) {
   document.getElementById('impl-contact-email').value = impl.contact_email || '';
   document.getElementById('impl-org-size').value   = impl.org_size || '';
   document.getElementById('impl-mdm').value              = impl.mdm_type || '';
-  document.getElementById('impl-deployment-method').value   = impl.deployment_method || '';
   document.getElementById('impl-plan').value                 = impl.plan || '';
   document.getElementById('impl-app-version').value          = impl.app_version || '';
   document.getElementById('impl-large-deployment').checked   = impl.large_deployment === true;

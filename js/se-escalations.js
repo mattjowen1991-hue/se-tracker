@@ -19,9 +19,10 @@ function priorityClass(p) {
 }
 
 function stageClass(s) {
-  if (s === 'Blocked')  return 'stage-blocked';
-  if (s === 'Pending')  return 'stage-pending';
-  if (s === 'Resolved') return 'stage-resolved';
+  if (s === 'Blocked')   return 'stage-blocked';
+  if (s === 'Pending')   return 'stage-pending';
+  if (s === 'Escalated') return 'stage-escalated';
+  if (s === 'Resolved')  return 'stage-resolved';
   return 'stage-open';
 }
 
@@ -85,13 +86,15 @@ function renderSeEscalations(escalations) {
     _viewingSeEsc = null;
   }
 
-  const active   = escalations.filter(e => e.stage !== 'Resolved');
-  const resolved = escalations.filter(e => e.stage === 'Resolved');
+  const closedStages = ['Resolved', 'Escalated'];
+  const active   = escalations.filter(e => !closedStages.includes(e.stage));
+  const resolved = escalations.filter(e => closedStages.includes(e.stage));
   const display  = _seEscView === 'active' ? active : resolved;
 
-  const urgentCount  = active.filter(e => e.priority === 'Urgent').length;
-  const highCount    = active.filter(e => e.priority === 'High').length;
-  const blockedCount = active.filter(e => e.stage === 'Blocked').length;
+  const urgentCount    = active.filter(e => e.priority === 'Urgent').length;
+  const highCount      = active.filter(e => e.priority === 'High').length;
+  const blockedCount   = active.filter(e => e.stage === 'Blocked').length;
+  const escalatedCount = resolved.filter(e => e.stage === 'Escalated').length;
 
   document.getElementById('se-escalations-content').innerHTML = `
     <div class="toolbar">
@@ -100,6 +103,7 @@ function renderSeEscalations(escalations) {
         <div class="kpi-small"><span class="kpi-num priority-urgent">${urgentCount}</span> Urgent</div>
         <div class="kpi-small"><span class="kpi-num priority-high">${highCount}</span> High</div>
         <div class="kpi-small"><span class="kpi-num stage-blocked">${blockedCount}</span> Blocked</div>
+        <div class="kpi-small"><span class="kpi-num stage-escalated">${escalatedCount}</span> Escalated</div>
       </div>
       <button class="btn-primary" onclick="showAddSeEscModal()">+ Log Escalation</button>
     </div>
@@ -108,7 +112,7 @@ function renderSeEscalations(escalations) {
       <button class="toggle-btn ${_seEscView === 'active' ? 'active' : ''}"
         onclick="setSeEscView('active')">Active (${active.length})</button>
       <button class="toggle-btn ${_seEscView === 'resolved' ? 'active' : ''}"
-        onclick="setSeEscView('resolved')">Resolved (${resolved.length})</button>
+        onclick="setSeEscView('resolved')">Resolved / Escalated (${resolved.length})</button>
     </div>
 
     <table class="data-table">
@@ -222,7 +226,6 @@ function openSeEscDetail(id) {
 }
 
 function renderSeEscDetail(esc) {
-  const isResolved = esc.stage === 'Resolved';
   const otherStages = SE_ESC_STAGES.filter(s => s !== esc.stage);
   const timeline = Array.isArray(esc.timeline) ? esc.timeline : [];
 
@@ -281,9 +284,13 @@ function renderSeEscDetail(esc) {
         </div>
       </div>
 
-      ${isResolved ? `
+      ${esc.stage === 'Resolved' ? `
         <div class="resolved-banner">
-          ✅ This escalation is resolved. Move it back to <strong>Open</strong> above if it resurfaces.
+          This escalation is resolved. Move it back to <strong>Open</strong> above if it resurfaces.
+        </div>` : ''}
+      ${esc.stage === 'Escalated' ? `
+        <div class="resolved-banner" style="border-color:rgba(124,58,237,0.3);background:rgba(124,58,237,0.08)">
+          This escalation has been escalated to Engineering. Move to <strong>Resolved</strong> when engineering confirms a fix.
         </div>` : ''}
 
       <div class="timeline-section">
@@ -369,7 +376,7 @@ async function moveSeEscStage(id, newStage, note) {
     await updateSeEscalation(id, updates);
     showToast(`Moved to ${newStage}`, 'success');
     await reloadAll();
-    _seEscView = newStage === 'Resolved' ? 'resolved' : 'active';
+    _seEscView = (newStage === 'Resolved' || newStage === 'Escalated') ? 'resolved' : 'active';
     _viewingSeEsc = id;
     renderSeEscalations(window._seEscalations);
   } catch(e) {
@@ -404,7 +411,7 @@ async function saveSeEscTimelineEntry(escId) {
   const updates = { timeline };
   if (stageChange) {
     updates.stage = stageChange;
-    _seEscView = stageChange === 'Resolved' ? 'resolved' : 'active';
+    _seEscView = (stageChange === 'Resolved' || stageChange === 'Escalated') ? 'resolved' : 'active';
   }
 
   try {

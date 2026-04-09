@@ -715,8 +715,21 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .pipeline-step.done   .pipeline-label { color:var(--blue); }
 .pipeline-step.active .pipeline-label { color:var(--green); font-weight:600; }
 .pipeline-date  { font-size:9px; color:var(--muted); margin-top:2px; }
+.pipeline-days  { font-size:9px; color:var(--blue); margin-top:1px; font-weight:600; font-family:var(--font-mono); }
+.pipeline-step.active .pipeline-days { color:var(--green); }
 .pipeline-line  { flex:1; height:2px; background:var(--border); margin-bottom:20px; }
 .pipeline-line.done { background:var(--blue); }
+
+/* Next action banner */
+.next-action-banner { display:flex; align-items:center; gap:10px; padding:10px 14px; margin-top:10px; border-radius:8px; background:var(--blue)0d; border:1px solid var(--blue)33; }
+.next-action-banner.next-action-done { background:var(--green)0d; border-color:var(--green)33; }
+.next-action-label { font-family:var(--font-mono); font-size:10px; font-weight:600; color:var(--blue); white-space:nowrap; letter-spacing:0.5px; }
+.next-action-done .next-action-label { color:var(--green); }
+.next-action-text { font-size:12px; color:var(--text); }
+
+/* Kanban card next action */
+.kanban-next-action { font-size:10px; color:var(--blue); margin-top:6px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kanban-next-done { color:var(--green); }
 
 /* Checklists */
 .checklist-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
@@ -1370,10 +1383,11 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   font-weight: 600;
 }
 
-.stage-open     { background: #eaf4fb; color: #2471a3; }
-.stage-pending  { background: #fef9e7; color: #b7950b; }
-.stage-blocked  { background: #fde8e8; color: #c0392b; }
-.stage-resolved { background: #eafaf1; color: #1e8449; }
+.stage-open      { background: #eaf4fb; color: #2471a3; }
+.stage-pending   { background: #fef9e7; color: #b7950b; }
+.stage-blocked   { background: #fde8e8; color: #c0392b; }
+.stage-escalated { background: #f3e8ff; color: #7c3aed; }
+.stage-resolved  { background: #eafaf1; color: #1e8449; }
 
 /* ── Detail view — shared ────────────────────────────────────────────────── */
 
@@ -1521,10 +1535,11 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 
 .stage-move-btn:hover { opacity: 0.8; }
 
-.stage-move-btn.stage-open     { background: #eaf4fb; color: #2471a3; border-color: #aed6f1; }
-.stage-move-btn.stage-pending  { background: #fef9e7; color: #b7950b; border-color: #f9e79f; }
-.stage-move-btn.stage-blocked  { background: #fde8e8; color: #c0392b; border-color: #f5b7b1; }
-.stage-move-btn.stage-resolved { background: #eafaf1; color: #1e8449; border-color: #a9dfbf; }
+.stage-move-btn.stage-open      { background: #eaf4fb; color: #2471a3; border-color: #aed6f1; }
+.stage-move-btn.stage-pending   { background: #fef9e7; color: #b7950b; border-color: #f9e79f; }
+.stage-move-btn.stage-blocked   { background: #fde8e8; color: #c0392b; border-color: #f5b7b1; }
+.stage-move-btn.stage-escalated { background: #f3e8ff; color: #7c3aed; border-color: #c4b5fd; }
+.stage-move-btn.stage-resolved  { background: #eafaf1; color: #1e8449; border-color: #a9dfbf; }
 
 /* ── Resolved banner ──────────────────────────────────────────────────────── */
 
@@ -1815,10 +1830,11 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   border-radius: 3px;
   letter-spacing: 0.03em;
 }
-.stage-open     { background: rgba(28,142,249,0.15);  color: var(--blue);    border: 1px solid rgba(28,142,249,0.3); }
-.stage-pending  { background: rgba(245,158,11,0.15);  color: var(--amber);   border: 1px solid rgba(245,158,11,0.3); }
-.stage-blocked  { background: rgba(239,68,68,0.15);   color: var(--red);     border: 1px solid rgba(239,68,68,0.3); }
-.stage-resolved { background: rgba(34,197,94,0.15);   color: var(--green);   border: 1px solid rgba(34,197,94,0.3); }
+.stage-open      { background: rgba(28,142,249,0.15);  color: var(--blue);    border: 1px solid rgba(28,142,249,0.3); }
+.stage-pending   { background: rgba(245,158,11,0.15);  color: var(--amber);   border: 1px solid rgba(245,158,11,0.3); }
+.stage-blocked   { background: rgba(239,68,68,0.15);   color: var(--red);     border: 1px solid rgba(239,68,68,0.3); }
+.stage-escalated { background: rgba(124,58,237,0.15);  color: #a78bfa;        border: 1px solid rgba(124,58,237,0.3); }
+.stage-resolved  { background: rgba(34,197,94,0.15);   color: var(--green);   border: 1px solid rgba(34,197,94,0.3); }
 
 /* ── Detail view ────────────────────────────────────────────────── */
 .detail-header {
@@ -1932,10 +1948,11 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   transition: opacity 0.15s;
 }
 .stage-move-btn:hover { opacity: 0.8; }
-.stage-move-btn.stage-open     { background: rgba(28,142,249,0.15);  color: var(--blue);  border: 1px solid rgba(28,142,249,0.3); }
-.stage-move-btn.stage-pending  { background: rgba(245,158,11,0.15);  color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
-.stage-move-btn.stage-blocked  { background: rgba(239,68,68,0.15);   color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
-.stage-move-btn.stage-resolved { background: rgba(34,197,94,0.15);   color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+.stage-move-btn.stage-open      { background: rgba(28,142,249,0.15);  color: var(--blue);  border: 1px solid rgba(28,142,249,0.3); }
+.stage-move-btn.stage-pending   { background: rgba(245,158,11,0.15);  color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+.stage-move-btn.stage-blocked   { background: rgba(239,68,68,0.15);   color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+.stage-move-btn.stage-escalated { background: rgba(124,58,237,0.15);  color: #a78bfa;      border: 1px solid rgba(124,58,237,0.3); }
+.stage-move-btn.stage-resolved  { background: rgba(34,197,94,0.15);   color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
 
 /* ── Resolved banner ────────────────────────────────────────────── */
 .resolved-banner {
@@ -2036,6 +2053,16 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 }
 
 /* ── Docs tab ───────────────────────────────────────────────────── */
+/* Doc filters */
+.doc-filters { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; margin-bottom:4px; }
+.doc-filter-btn { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 12px; font-size:11px; font-family:var(--font-sans); color:var(--muted); cursor:pointer; transition:all 0.15s; }
+.doc-filter-btn:hover { border-color:var(--blue); color:var(--text); }
+.doc-filter-btn.active { background:rgba(28,142,249,0.15); border-color:var(--blue); color:var(--blue); font-weight:600; }
+
+/* Stale doc indicator */
+.doc-stale { border-color:rgba(245,158,11,0.4); }
+.doc-stale-badge { font-size:10px; color:var(--amber); margin-top:6px; font-family:var(--font-mono); }
+
 .docs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
