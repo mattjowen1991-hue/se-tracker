@@ -779,12 +779,12 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .activity-form  { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:16px; }
 .input-sm { font-size:12px; padding:6px 10px; }
 .activity-timeline { display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:4px; }
-.activity-entry { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; }
+.activity-entry { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; position:relative; }
 .activity-entry-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
-.activity-entry-actions { margin-left:auto; display:none; gap:2px; }
+.activity-entry-actions { position:absolute; top:8px; right:8px; display:none; gap:4px; }
 .activity-entry:hover .activity-entry-actions { display:flex; }
-.icon-btn-sm { font-size:12px; padding:2px 4px; opacity:0.6; }
-.icon-btn-sm:hover { opacity:1; }
+.act-action-btn { font-size:10px; font-family:var(--font-mono); padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; transition:all 0.15s; }
+.act-action-btn:hover { border-color:var(--blue); color:var(--blue); }
 .activity-stage-tag { font-size:10px; background:var(--blue)22; color:var(--blue); border-radius:4px; padding:1px 6px; font-weight:600; }
 .timeline-date { font-size:10px; color:var(--muted); margin-left:auto; }
 .activity-note  { font-size:12px; color:var(--text); line-height:1.5; }
@@ -940,10 +940,8 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   align-items: center;
   margin-bottom: 4px;
 }
-.url-row .act-url-input {
-  flex: 1;
-  margin-bottom: 0;
-}
+.url-row .act-url-label, .url-row .edit-act-url-label { flex:0 0 35%; margin-bottom:0; }
+.url-row .act-url-input, .url-row .edit-act-url-input { flex:1; margin-bottom:0; }
 .url-remove-btn {
   background: none;
   border: 1px solid var(--border);

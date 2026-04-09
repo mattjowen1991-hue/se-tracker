@@ -1,5 +1,19 @@
 // Silent App Implementations Tab
 
+// Simple markdown → HTML for activity notes
+function formatNote(text) {
+  if (!text) return '';
+  // Escape HTML first
+  var s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // **bold**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // *italic*
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Newlines → <br>
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
 // Returns today's date as YYYY-MM-DD in LOCAL timezone (not UTC)
 function localDateStr() {
   var d = new Date();
@@ -503,14 +517,16 @@ function renderImplDetail(impl, allImpls) {
             (entry.rag ? '<span style="color:' + rc + ';font-size:0.75rem;font-weight:600">' + entry.rag + '</span>' : '') +
             '<span class="timeline-date">' + (entry.date||'') + '</span>' +
             '<span class="activity-entry-actions">' +
-              '<button class="icon-btn icon-btn-sm" onclick="showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')" title="Edit">✎</button>' +
-              '<button class="icon-btn icon-btn-sm" onclick="deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')" title="Delete">🗑</button>' +
+              '<button class="act-action-btn" onclick="event.stopPropagation();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
+              '<button class="act-action-btn" onclick="event.stopPropagation();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Del</button>' +
             '</span>' +
           '</div>' +
-          '<div class="activity-note">' + entry.note + '</div>' +
+          '<div class="activity-note">' + formatNote(entry.note) + '</div>' +
           '<div class="activity-links">' +
             (entry.urls && entry.urls.length ? entry.urls.map(function(u, i) {
-              return '<a href="' + u + '" target="_blank" class="activity-link">🔗 Link ' + (entry.urls.length > 1 ? (i+1) : '') + '</a>';
+              // Support both old format (plain string) and new format ({label, url})
+              if (typeof u === 'string') return '<a href="' + u + '" target="_blank" class="activity-link">🔗 Link ' + (entry.urls.length > 1 ? (i+1) : '') + '</a>';
+              return '<a href="' + u.url + '" target="_blank" class="activity-link">🔗 ' + (u.label || 'Link' + (entry.urls.length > 1 ? ' ' + (i+1) : '')) + '</a>';
             }).join('') : (entry.url ? '<a href="' + entry.url + '" target="_blank" class="activity-link">🔗 Link</a>' : '')) +
           '</div>' +
         '</div>';
@@ -575,7 +591,7 @@ function renderImplDetail(impl, allImpls) {
             '<option value="Amber">Amber</option>' +
             '<option value="Red">Red</option>' +
           '</select>' +
-          '<textarea id="act-note" placeholder="What happened? What\'s next?" class="input-field" rows="3"></textarea>' +
+          '<textarea id="act-note" placeholder="What happened? What\'s next?  Use **bold** and *italic*" class="input-field" rows="3"></textarea>' +
           '<div id="act-urls-container"></div>' +
           '<button type="button" class="btn-secondary btn-sm" style="width:100%;margin-bottom:4px" onclick="addUrlField()">+ Add URL</button>' +
           '<button class="btn-primary btn-sm" style="width:100%" onclick="addActivityEntry(\'' + impl.id + '\')">Add Entry</button>' +
@@ -614,11 +630,11 @@ async function toggleChecklistItem(implId, itemId, checked) {
 function addUrlField() {
   var container = document.getElementById('act-urls-container');
   if (!container) return;
-  var idx = container.children.length;
   var row = document.createElement('div');
   row.className = 'url-row';
   row.innerHTML =
-    '<input class="input-field input-sm act-url-input" placeholder="URL ' + (idx + 1) + ' (Slack, HubSpot, doc…)" />' +
+    '<input class="input-field input-sm act-url-label" placeholder="Label (e.g. Slack thread, HubSpot ticket…)" />' +
+    '<input class="input-field input-sm act-url-input" placeholder="https://..." />' +
     '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>';
   container.appendChild(row);
 }
@@ -630,7 +646,13 @@ async function addActivityEntry(implId) {
   var stage       = document.getElementById('act-stage').value;
   var rag         = document.getElementById('act-rag').value;
   var note        = document.getElementById('act-note').value.trim();
-  var urls = Array.from(document.querySelectorAll('.act-url-input')).map(function(i){ return i.value.trim(); }).filter(Boolean);
+  var urlRows = Array.from(document.querySelectorAll('#act-urls-container .url-row'));
+  var urls = urlRows.map(function(row) {
+    var urlVal = row.querySelector('.act-url-input').value.trim();
+    var labelVal = row.querySelector('.act-url-label');
+    var label = labelVal ? labelVal.value.trim() : '';
+    return urlVal ? { label: label || null, url: urlVal } : null;
+  }).filter(Boolean);
 
   if (!note) { showToast('Please add a note', 'error'); return; }
 
@@ -669,14 +691,27 @@ function showEditActivityModal(implId, index) {
   var activity = Array.isArray(impl.activity) ? impl.activity : [];
   var entry = activity[index];
   if (!entry) return;
-  var urls = entry.urls || (entry.url ? [entry.url] : []);
+  // Normalize URLs to {label, url} format (backward compat with plain strings)
+  var rawUrls = entry.urls || (entry.url ? [entry.url] : []);
+  var urls = rawUrls.map(function(u) {
+    if (typeof u === 'string') return { label: '', url: u };
+    return { label: u.label || '', url: u.url || '' };
+  });
 
   var existing = document.getElementById('edit-act-modal');
   if (existing) existing.remove();
 
+  var urlRowsHtml = urls.map(function(u) {
+    return '<div class="url-row">' +
+      '<input class="input-field input-sm edit-act-url-label" placeholder="Label" value="' + (u.label || '') + '" />' +
+      '<input class="input-field input-sm edit-act-url-input" placeholder="https://..." value="' + u.url + '" />' +
+      '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()">✕</button>' +
+    '</div>';
+  }).join('');
+
   var html =
     '<div id="edit-act-modal" class="modal" onclick="if(event.target===this)closeEditActivityModal()">' +
-      '<div class="modal-box" style="max-width:480px">' +
+      '<div class="modal-box" style="max-width:520px">' +
         '<h3>Edit Activity Entry</h3>' +
         '<label class="field-label">Date</label>' +
         '<input id="edit-act-date" type="date" class="input-field" value="' + (entry.date || '') + '" />' +
@@ -692,10 +727,11 @@ function showEditActivityModal(implId, index) {
           '<option value="Amber"' + (entry.rag==='Amber'?' selected':'') + '>Amber</option>' +
           '<option value="Red"' + (entry.rag==='Red'?' selected':'') + '>Red</option>' +
         '</select>' +
-        '<label class="field-label">Note</label>' +
-        '<textarea id="edit-act-note" class="input-field" rows="3">' + (entry.note || '') + '</textarea>' +
-        '<label class="field-label">URLs <span class="field-hint">(one per line)</span></label>' +
-        '<textarea id="edit-act-urls" class="input-field" rows="2" placeholder="https://...">' + urls.join('\n') + '</textarea>' +
+        '<label class="field-label">Note <span class="field-hint">Use **bold** and *italic*</span></label>' +
+        '<textarea id="edit-act-note" class="input-field" rows="4">' + (entry.note || '') + '</textarea>' +
+        '<label class="field-label">Links</label>' +
+        '<div id="edit-act-urls-container">' + urlRowsHtml + '</div>' +
+        '<button type="button" class="btn-secondary btn-sm" style="width:100%;margin-top:4px" onclick="addEditUrlField()">+ Add Link</button>' +
         '<div class="modal-actions">' +
           '<button class="btn-secondary" onclick="closeEditActivityModal()">Cancel</button>' +
           '<button class="btn-primary" onclick="saveEditedActivity(\'' + implId + '\',' + index + ')">Save</button>' +
@@ -703,6 +739,18 @@ function showEditActivityModal(implId, index) {
       '</div>' +
     '</div>';
   document.getElementById('silent-app-content').insertAdjacentHTML('beforeend', html);
+}
+
+function addEditUrlField() {
+  var container = document.getElementById('edit-act-urls-container');
+  if (!container) return;
+  var row = document.createElement('div');
+  row.className = 'url-row';
+  row.innerHTML =
+    '<input class="input-field input-sm edit-act-url-label" placeholder="Label" />' +
+    '<input class="input-field input-sm edit-act-url-input" placeholder="https://..." />' +
+    '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()">✕</button>';
+  container.appendChild(row);
 }
 
 function closeEditActivityModal() {
@@ -719,8 +767,13 @@ async function saveEditedActivity(implId, index) {
   var note = document.getElementById('edit-act-note').value.trim();
   if (!note) { showToast('Note cannot be empty', 'error'); return; }
 
-  var urlsRaw = document.getElementById('edit-act-urls').value.trim();
-  var urls = urlsRaw ? urlsRaw.split('\n').map(function(u){ return u.trim(); }).filter(Boolean) : [];
+  var urlRows = Array.from(document.querySelectorAll('#edit-act-urls-container .url-row'));
+  var urls = urlRows.map(function(row) {
+    var urlVal = row.querySelector('.edit-act-url-input').value.trim();
+    var labelEl = row.querySelector('.edit-act-url-label');
+    var label = labelEl ? labelEl.value.trim() : '';
+    return urlVal ? { label: label || null, url: urlVal } : null;
+  }).filter(Boolean);
 
   activity[index] = {
     date:  document.getElementById('edit-act-date').value,
