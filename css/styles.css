@@ -743,6 +743,9 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .kanban-card:hover .kanban-quick-add { display:flex; }
 .kanban-quick-add:hover { border-color:var(--blue); color:var(--blue); background:rgba(28,142,249,0.1); }
 
+/* Kanban escalation badge */
+.kanban-esc-badge { font-size:9px; font-family:var(--font-mono); font-weight:600; color:var(--red); background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:1px 5px; white-space:nowrap; }
+
 /* Kanban stale card */
 .kanban-card-stale { border-color:rgba(245,158,11,0.4); }
 .kanban-stale-badge { font-size:9px; font-family:var(--font-mono); font-weight:600; color:var(--amber); margin-bottom:4px; }
@@ -764,6 +767,11 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .linked-esc { font-size:12px; padding:8px 0; border-bottom:1px solid var(--border)55; cursor:pointer; color:var(--text); transition:color 0.15s; }
 .linked-esc:hover { color:var(--blue); }
 .linked-esc:last-child { border-bottom:none; }
+.linked-esc-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.linked-esc-bottom { display:flex; align-items:center; gap:10px; margin-top:3px; }
+.linked-esc-date { font-size:11px; color:var(--muted); }
+.linked-esc-days { font-size:10px; font-family:var(--font-mono); color:var(--muted); }
+.linked-esc-open { color:var(--amber); font-weight:600; }
 
 /* Activity log */
 .activity-card  { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
@@ -918,6 +926,8 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   transition: border-color 0.15s, background 0.15s;
 }
 .detail-back:hover { border-color: var(--blue); background: var(--blue)11; }
+.detail-back-return { color:var(--amber); margin-bottom:6px; }
+.detail-back-return:hover { border-color:var(--amber); background:rgba(245,158,11,0.08); }
 
 /* ── Multi-URL rows (activity log) ─────────────────────────────── */
 .url-row {

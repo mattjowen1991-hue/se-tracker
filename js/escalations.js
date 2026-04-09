@@ -383,6 +383,7 @@ function backToEscList() {
 }
 
 function goToDeployment(implId) {
+  _returnToEscalation = { id: _viewingEscalation, tab: 'deployment-escalations' };
   _viewingImpl = implId;
   switchTab('deployments');
 }

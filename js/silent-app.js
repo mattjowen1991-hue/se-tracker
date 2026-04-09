@@ -50,6 +50,7 @@ const DEFAULT_CHECKLISTS = {
 let _viewMode = 'kanban';
 let _viewingImpl = null;
 let _showArchived = false;
+let _returnToEscalation = null; // { id, tab } — set when navigating from an escalation to a deployment
 
 // ── Main render ───────────────────────────────────────────────────────────────
 
@@ -236,12 +237,18 @@ function renderKanbanCard(impl) {
     }
   }
 
+  // Linked escalation count
+  var pendingEscs = (window._escalations || []).filter(function(e) {
+    return e.implementation_id === impl.id && e.outcome === 'Pending';
+  });
+
   return '<div class="kanban-card' + (isStale ? ' kanban-card-stale' : '') + '" draggable="true"' +
     ' ondragstart="kanbanDragStart(event,\'' + impl.id + '\')" ondragend="kanbanDragEnd(event)"' +
     ' onclick="openImplDetail(\'' + impl.id + '\')">' +
     (isStale ? '<div class="kanban-stale-badge">' + staleDays + 'd no activity</div>' : '') +
     '<div class="kanban-card-top">' +
       '<div class="kanban-card-org">' + impl.org + '</div>' +
+      (pendingEscs.length > 0 ? '<span class="kanban-esc-badge" title="' + pendingEscs.length + ' pending escalation' + (pendingEscs.length > 1 ? 's' : '') + '">' + pendingEscs.length + ' esc</span>' : '') +
       '<div class="rag-dot" style="background:' + ragColour + '" title="' + impl.rag + '"></div>' +
     '</div>' +
     '<div class="kanban-card-meta">' + (impl.contact_name || '') + (impl.org_size ? ' &nbsp;·&nbsp; ' + impl.org_size + ' devices' : '') + (impl.large_deployment ? ' &nbsp;<span style="color:var(--amber);font-size:10px;font-weight:600">50+</span>' : '') + '</div>' +
@@ -363,7 +370,18 @@ function openImplDetail(id) {
 
 function closeImplDetail() {
   _viewingImpl = null;
+  _returnToEscalation = null;
   renderSilentApp(window._implementations);
+}
+
+function returnToEscalation() {
+  var ret = _returnToEscalation;
+  _returnToEscalation = null;
+  _viewingImpl = null;
+  if (ret && ret.tab === 'deployment-escalations') {
+    _viewingEscalation = ret.id;
+    switchTab('deployment-escalations');
+  }
 }
 
 function renderImplDetail(impl, allImpls) {
@@ -453,10 +471,22 @@ function renderImplDetail(impl, allImpls) {
       ? '<div class="checklist-empty">No escalations logged for this deployment yet.</div>'
       : linkedEscs.map(function(e) {
           var outcomeClass = e.outcome.toLowerCase().replace(/ /g, '-');
-          return '<div class="linked-esc" onclick="(function(){_viewingImpl=null;switchTab(\'deployment-escalations\');setTimeout(function(){openEscalationDetail(\'' + e.id + '\')},200)})()">' +
-            '<span class="tag" style="font-size:0.75rem">' + e.type + (e.other_desc ? ': ' + e.other_desc : '') + '</span>' +
-            ' &nbsp;&middot;&nbsp; ' + (e.date || '&mdash;') +
-            '<span class="outcome ' + outcomeClass + '" style="float:right;font-size:0.75rem">' + e.outcome + '</span>' +
+          var daysInfo = '';
+          if (e.days_to_resolve != null) {
+            daysInfo = '<span class="linked-esc-days">' + e.days_to_resolve + 'd to resolve</span>';
+          } else if (e.outcome === 'Pending' && e.date) {
+            var daysOpen = Math.floor((new Date() - new Date(e.date)) / (86400000));
+            daysInfo = '<span class="linked-esc-days linked-esc-open">' + daysOpen + 'd open</span>';
+          }
+          return '<div class="linked-esc" onclick="(function(){_returnToEscalation={id:\'' + e.id + '\',tab:\'deployment-escalations\'};_viewingImpl=null;switchTab(\'deployment-escalations\');setTimeout(function(){openEscalationDetail(\'' + e.id + '\')},200)})()">' +
+            '<div class="linked-esc-top">' +
+              '<span class="tag" style="font-size:0.75rem">' + e.type + (e.other_desc ? ': ' + e.other_desc : '') + '</span>' +
+              '<span class="outcome ' + outcomeClass + '" style="font-size:0.75rem">' + e.outcome + '</span>' +
+            '</div>' +
+            '<div class="linked-esc-bottom">' +
+              '<span class="linked-esc-date">' + (e.date || '—') + '</span>' +
+              daysInfo +
+            '</div>' +
           '</div>';
         }).join('')) +
   '</div>';
@@ -481,7 +511,12 @@ function renderImplDetail(impl, allImpls) {
         '</div>';
       }).join('');
 
+  var returnLink = _returnToEscalation
+    ? '<div class="detail-back detail-back-return" onclick="returnToEscalation()">&#8592; Back to escalation</div>'
+    : '';
+
   document.getElementById('silent-app-content').innerHTML =
+    returnLink +
     '<div class="detail-back" onclick="closeImplDetail()">&#8592; Back to implementations</div>' +
     '<div class="detail-single">' +
 
