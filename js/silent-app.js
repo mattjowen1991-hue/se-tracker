@@ -543,8 +543,8 @@ function renderImplDetail(impl, allImpls) {
             '<span class="tl-actions">' +
               '<button class="tl-menu-btn" onclick="event.stopPropagation();toggleTlMenu(\'' + entryId + '\')" title="Actions">...</button>' +
               '<span class="tl-menu hidden" id="' + entryId + '-menu">' +
-                '<button onclick="event.stopPropagation();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
-                '<button onclick="event.stopPropagation();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Delete</button>' +
+                '<button onclick="event.stopPropagation();closeTlMenus();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
+                '<button onclick="event.stopPropagation();closeTlMenus();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Delete</button>' +
               '</span>' +
             '</span>' +
           '</div>' +
@@ -731,11 +731,18 @@ function toggleActivityEntry(entryId) {
   if (preview) preview.classList.toggle('hidden', !isExpanded);
 }
 
-function toggleTlMenu(entryId) {
-  // Close all other menus first
+function closeTlMenus() {
   document.querySelectorAll('.tl-menu').forEach(function(m) { m.classList.add('hidden'); });
+}
+
+function toggleTlMenu(entryId, evt) {
+  if (evt) evt.stopPropagation();
   var menu = document.getElementById(entryId + '-menu');
-  if (menu) menu.classList.toggle('hidden');
+  var wasOpen = menu && !menu.classList.contains('hidden');
+  // Close all menus first
+  document.querySelectorAll('.tl-menu').forEach(function(m) { m.classList.add('hidden'); });
+  // Toggle the target
+  if (menu && !wasOpen) menu.classList.remove('hidden');
 }
 
 // Close menus on click outside
