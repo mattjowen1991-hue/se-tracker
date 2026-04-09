@@ -959,6 +959,12 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
   align-items: center;
   margin-bottom: 4px;
 }
+/* Contact rows */
+.contact-row { display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+.contact-row .contact-name { flex:1; margin-bottom:0; }
+.contact-row .contact-email { flex:1; margin-bottom:0; }
+.contact-row .contact-role { flex:0 0 28%; margin-bottom:0; }
+
 .url-row .act-url-label, .url-row .edit-act-url-label { flex:0 0 35%; margin-bottom:0; }
 .url-row .act-url-input, .url-row .edit-act-url-input { flex:1; margin-bottom:0; }
 .url-remove-btn {

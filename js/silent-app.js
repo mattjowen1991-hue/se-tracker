@@ -14,6 +14,20 @@ function formatNote(text) {
   return s;
 }
 
+// Get contacts from impl — backward compatible with old contact_name/contact_email fields
+function getImplContacts(impl) {
+  if (Array.isArray(impl.contacts) && impl.contacts.length > 0) return impl.contacts;
+  if (impl.contact_name) return [{ name: impl.contact_name, email: impl.contact_email || '', role: null }];
+  return [];
+}
+
+function formatContactShort(contacts) {
+  if (!contacts.length) return '';
+  var first = contacts[0].name || contacts[0].email || '';
+  if (contacts.length === 1) return first;
+  return first + ' +' + (contacts.length - 1);
+}
+
 // Returns today's date as YYYY-MM-DD in LOCAL timezone (not UTC)
 function localDateStr() {
   var d = new Date();
@@ -159,8 +173,25 @@ function renderImplModal(impl) {
       '<h3 id="impl-modal-title">' + (impl ? 'Edit' : 'Add') + ' Implementation</h3>' +
       '<div class="modal-grid">' +
         '<input id="impl-org" placeholder="Organisation name" class="input-field" style="grid-column:1/-1" value="' + (impl ? impl.org || '' : '') + '" />' +
-        '<input id="impl-contact-name" placeholder="Contact name" class="input-field" value="' + (impl ? impl.contact_name || '' : '') + '" />' +
-        '<input id="impl-contact-email" placeholder="Contact email" class="input-field" value="' + (impl ? impl.contact_email || '' : '') + '" />' +
+        '<div style="grid-column:1/-1">' +
+          '<label class="field-label">Contacts</label>' +
+          '<div id="impl-contacts-container">' +
+            (function() {
+              var contacts = (impl && Array.isArray(impl.contacts) && impl.contacts.length > 0)
+                ? impl.contacts
+                : (impl && impl.contact_name ? [{ name: impl.contact_name, email: impl.contact_email || '', role: '' }] : [{ name: '', email: '', role: '' }]);
+              return contacts.map(function(c) {
+                return '<div class="contact-row">' +
+                  '<input class="input-field input-sm contact-name" placeholder="Name" value="' + (c.name || '') + '" />' +
+                  '<input class="input-field input-sm contact-email" placeholder="Email" value="' + (c.email || '') + '" />' +
+                  '<input class="input-field input-sm contact-role" placeholder="Role (optional)" value="' + (c.role || '') + '" />' +
+                  '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>' +
+                '</div>';
+              }).join('');
+            })() +
+          '</div>' +
+          '<button type="button" class="btn-secondary btn-sm" style="width:100%;margin-top:4px" onclick="addContactRow()">+ Add Contact</button>' +
+        '</div>' +
         '<input id="impl-org-size" placeholder="Number of devices" type="number" class="input-field" value="' + (impl ? impl.org_size || '' : '') + '" />' +
         '<input id="impl-mdm" placeholder="MDM tool (e.g. Intune, Jamf, GPO, None)" class="input-field" value="' + (impl ? impl.mdm_type || '' : '') + '" />' +
         '<select id="impl-plan" class="input-field">' +
@@ -265,7 +296,7 @@ function renderKanbanCard(impl) {
       (pendingEscs.length > 0 ? '<span class="kanban-esc-badge" title="' + pendingEscs.length + ' pending escalation' + (pendingEscs.length > 1 ? 's' : '') + '">' + pendingEscs.length + ' esc</span>' : '') +
       '<div class="rag-dot" style="background:' + ragColour + '" title="' + impl.rag + '"></div>' +
     '</div>' +
-    '<div class="kanban-card-meta">' + (impl.contact_name || '') + (impl.org_size ? ' &nbsp;·&nbsp; ' + impl.org_size + ' devices' : '') + (impl.large_deployment ? ' &nbsp;<span style="color:var(--amber);font-size:10px;font-weight:600">50+</span>' : '') + '</div>' +
+    '<div class="kanban-card-meta">' + formatContactShort(getImplContacts(impl)) + (impl.org_size ? ' &nbsp;·&nbsp; ' + impl.org_size + ' devices' : '') + (impl.large_deployment ? ' &nbsp;<span style="color:var(--amber);font-size:10px;font-weight:600">50+</span>' : '') + '</div>' +
     (os ? '<div class="kanban-card-meta">' + os + (impl.mdm_type ? ' &nbsp;·&nbsp; ' + impl.mdm_type : '') + (impl.deployment_method ? ' (' + impl.deployment_method + ')' : '') + '</div>' : '') +
     ((impl.plan || impl.app_version) ? '<div class="kanban-card-meta" style="color:var(--muted)">' + (impl.plan || '') + (impl.plan && impl.app_version ? ' &nbsp;·&nbsp; ' : '') + (impl.app_version ? 'v' + impl.app_version : '') + '</div>' : '') +
     '<div class="checklist-progress">' +
@@ -356,7 +387,7 @@ function renderTable(implementations) {
       var fillColour = pct === 100 ? 'var(--green)' : 'var(--blue)';
       return '<tr class="clickable-row" onclick="openImplDetail(\'' + impl.id + '\')">' +
         '<td><strong>' + impl.org + '</strong></td>' +
-        '<td>' + (impl.contact_name || '&mdash;') + '</td>' +
+        '<td>' + (formatContactShort(getImplContacts(impl)) || '&mdash;') + '</td>' +
         '<td>' + (impl.org_size || '&mdash;') + '</td>' +
         '<td>' + (os || '&mdash;') + '</td>' +
         '<td>' + (impl.mdm_type || '&mdash;') + '</td>' +
@@ -575,7 +606,17 @@ function renderImplDetail(impl, allImpls) {
         '<div class="detail-card-header">' +
           '<div>' +
             '<div class="detail-org">' + impl.org + '</div>' +
-            '<div class="detail-meta">' + (impl.contact_name||'') + (impl.contact_email?' &nbsp;·&nbsp; <a href="mailto:'+impl.contact_email+'" style="color:var(--blue)">'+impl.contact_email+'</a>':'') + '</div>' +
+            (function() {
+              var contacts = getImplContacts(impl);
+              if (!contacts.length) return '';
+              return contacts.map(function(c) {
+                return '<div class="detail-meta">' +
+                  (c.name || '') +
+                  (c.role ? ' <span style="color:var(--muted);font-size:11px">(' + c.role + ')</span>' : '') +
+                  (c.email ? ' &nbsp;·&nbsp; <a href="mailto:' + c.email + '" style="color:var(--blue)">' + c.email + '</a>' : '') +
+                '</div>';
+              }).join('');
+            })() +
             '<div class="detail-meta" style="margin-top:4px">' +
               (impl.org_size ? impl.org_size + ' devices' : '') +
               (impl.large_deployment ? ' &nbsp;<span style="background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600">50+ — Involve Lucas</span>' : '') +
@@ -660,6 +701,19 @@ async function toggleChecklistItem(implId, itemId, checked) {
 }
 
 // ── Activity log ──────────────────────────────────────────────────────────────
+
+function addContactRow() {
+  var container = document.getElementById('impl-contacts-container');
+  if (!container) return;
+  var row = document.createElement('div');
+  row.className = 'contact-row';
+  row.innerHTML =
+    '<input class="input-field input-sm contact-name" placeholder="Name" />' +
+    '<input class="input-field input-sm contact-email" placeholder="Email" />' +
+    '<input class="input-field input-sm contact-role" placeholder="Role (optional)" />' +
+    '<button type="button" class="url-remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>';
+  container.appendChild(row);
+}
 
 function addUrlField() {
   var container = document.getElementById('act-urls-container');
@@ -1002,7 +1056,7 @@ function setViewMode(mode) {
 function showAddImplModal() {
   document.getElementById('impl-modal-title').textContent = 'Add Implementation';
   document.getElementById('impl-edit-id').value = '';
-  ['impl-org','impl-contact-name','impl-contact-email','impl-org-size','impl-mdm','impl-app-version','impl-notes','impl-hubspot-url','impl-slack-url'].forEach(function(id){
+  ['impl-org','impl-org-size','impl-mdm','impl-app-version','impl-notes','impl-hubspot-url','impl-slack-url'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   document.querySelectorAll('.impl-os-cb').forEach(function(cb){ cb.checked = false; });
@@ -1024,8 +1078,6 @@ function editImpl(id) {
   document.getElementById('impl-modal-title').textContent = 'Edit Implementation';
   document.getElementById('impl-edit-id').value   = id;
   document.getElementById('impl-org').value        = impl.org || '';
-  document.getElementById('impl-contact-name').value  = impl.contact_name || '';
-  document.getElementById('impl-contact-email').value = impl.contact_email || '';
   document.getElementById('impl-org-size').value   = impl.org_size || '';
   document.getElementById('impl-mdm').value              = impl.mdm_type || '';
   document.getElementById('impl-plan').value                 = impl.plan || '';
@@ -1047,8 +1099,13 @@ async function saveImpl() {
   var os = Array.from(document.querySelectorAll('.impl-os-cb:checked')).map(function(cb){ return cb.value; });
   var data = {
     org:               document.getElementById('impl-org').value.trim(),
-    contact_name:      document.getElementById('impl-contact-name').value.trim(),
-    contact_email:     document.getElementById('impl-contact-email').value.trim(),
+    contacts: Array.from(document.querySelectorAll('#impl-contacts-container .contact-row')).map(function(row) {
+      return {
+        name:  row.querySelector('.contact-name').value.trim(),
+        email: row.querySelector('.contact-email').value.trim(),
+        role:  row.querySelector('.contact-role').value.trim() || null
+      };
+    }).filter(function(c) { return c.name || c.email; }),
     org_size:          parseInt(document.getElementById('impl-org-size').value) || null,
     mdm_type:          document.getElementById('impl-mdm').value.trim(),
     deployment_method: document.getElementById('impl-deploy-method').value,
