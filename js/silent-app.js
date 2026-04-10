@@ -572,11 +572,8 @@ function renderImplDetail(impl, allImpls) {
             (linkPills ? '<span class="tl-pills">' + linkPills + '</span>' : '') +
             '<span class="tl-preview">' + preview + '</span>' +
             '<span class="tl-actions">' +
-              '<button class="tl-menu-btn" onclick="event.stopPropagation();toggleTlMenu(\'' + entryId + '\')" title="Actions">...</button>' +
-              '<span class="tl-menu hidden" id="' + entryId + '-menu">' +
-                '<button onclick="event.stopPropagation();closeTlMenus();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
-                '<button onclick="event.stopPropagation();closeTlMenus();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Delete</button>' +
-              '</span>' +
+              '<button class="tl-action-btn" onclick="event.stopPropagation();showEditActivityModal(\'' + impl.id + '\',' + realIndex + ')">Edit</button>' +
+              '<button class="tl-action-btn tl-action-del" onclick="event.stopPropagation();deleteActivityEntry(\'' + impl.id + '\',' + realIndex + ')">Del</button>' +
             '</span>' +
           '</div>' +
           // Expanded body — hidden by default
