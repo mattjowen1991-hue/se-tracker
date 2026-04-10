@@ -569,8 +569,8 @@ function renderImplDetail(impl, allImpls) {
             '<span class="tl-date">' + (entry.date||'') + '</span>' +
             '<span class="activity-stage-tag">' + (entry.stage||'Note') + '</span>' +
             ragDot +
+            (linkPills ? '<span class="tl-pills">' + linkPills + '</span>' : '') +
             '<span class="tl-preview">' + preview + '</span>' +
-            '<span class="tl-pills">' + linkPills + '</span>' +
             '<span class="tl-actions">' +
               '<button class="tl-menu-btn" onclick="event.stopPropagation();toggleTlMenu(\'' + entryId + '\')" title="Actions">...</button>' +
               '<span class="tl-menu hidden" id="' + entryId + '-menu">' +
