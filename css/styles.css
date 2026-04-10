@@ -792,9 +792,8 @@ input[type="date"].input-field::-webkit-calendar-picker-indicator { filter: inve
 .tl-link-pill { font-size:9px; font-family:var(--font-mono); color:var(--blue); background:var(--blue)11; border:1px solid var(--blue)33; border-radius:3px; padding:1px 6px; text-decoration:none; white-space:nowrap; }
 .tl-link-pill:hover { background:var(--blue)22; text-decoration:none; }
 .tl-actions { position:relative; flex-shrink:0; }
-.tl-menu-btn { background:none; border:1px solid transparent; border-radius:4px; color:var(--muted); cursor:pointer; font-size:14px; font-weight:bold; line-height:1; padding:0 4px; letter-spacing:1px; opacity:0; transition:opacity 0.15s; }
-.tl-entry:hover .tl-menu-btn { opacity:1; }
-.tl-menu-btn:hover { border-color:var(--border); color:var(--text); }
+.tl-menu-btn { background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--muted); cursor:pointer; font-size:12px; font-weight:bold; line-height:1; padding:4px 8px; letter-spacing:1px; transition:all 0.15s; }
+.tl-menu-btn:hover { border-color:var(--blue); color:var(--blue); background:rgba(28,142,249,0.08); }
 .tl-menu { position:absolute; top:100%; right:0; background:var(--surface); border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10; overflow:hidden; min-width:80px; }
 .tl-menu button { display:block; width:100%; padding:6px 12px; font-size:11px; font-family:var(--font-sans); color:var(--text); background:none; border:none; cursor:pointer; text-align:left; }
 .tl-menu button:hover { background:var(--surface2); }
